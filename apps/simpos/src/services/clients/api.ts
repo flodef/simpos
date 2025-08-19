@@ -4,7 +4,7 @@ import camelcaseKeys from 'camelcase-keys';
 import { AuthUserMeta } from '../db';
 
 export const simApi = axios.create({
-  baseURL: import.meta.env.ODOO_BASE_URL,
+  baseURL: import.meta.env.VITE_ODOO_BASE_URL,
 });
 
 simApi.interceptors.response.use(

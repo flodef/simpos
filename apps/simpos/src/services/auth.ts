@@ -19,12 +19,13 @@ export interface ServerMetadata {
 
 export const authService = {
   login: (params: LoginParams) => {
-    return simApi.post(
-      '/exchange_token',
-      {
-        params,
+    return simApi.post('/exchange_token', {
+      params: {
+        db: import.meta.env.VITE_ODOO_DB,
+        login: params.login,
+        password: params.password,
       },
-    );
+    });
   },
   saveAuthMeta: async (authMeta: AuthUserMeta) => {
     await authUserMeta.create(authMeta);
@@ -36,7 +37,9 @@ export const authService = {
     params: PosMetadataParams,
   ): Promise<ServerMetadata> => {
     const data: ServerMetadata = await simApi.post('/pos_metadata', {
-      params,
+      params: {
+        config_id: params.config_id,
+      },
     });
 
     await authUserMeta.update({
