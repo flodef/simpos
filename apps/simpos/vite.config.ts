@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react-swc';
 export default defineConfig({
   plugins: [react()],
   server: {
+    port: 5173,
+    host: '0.0.0.0', // Allow external access
     watch: {
       ignored: ['**/src-tauri/**'],
     },
