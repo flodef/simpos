@@ -54,7 +54,7 @@ export const Login: React.FunctionComponent = () => {
           </Box>
         </Flex>
         <Formik
-          initialValues={{ login: 'jun@fibotree.com', password: '12345678' }}
+          initialValues={{ login: '', password: '' }}
           validationSchema={SignInSchema}
           onSubmit={async (values, { setSubmitting }) => {
             try {
