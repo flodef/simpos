@@ -15,9 +15,12 @@
     'version': '0.1',
     'depends': ['pos_restaurant'],
 
-    'qweb': [
-        'static/src/xml/multiprint.xml',
-    ],
+    'assets': {
+        'point_of_sale.assets': [
+            'simpos_pos_order_network_printer/static/src/js/*.js',
+            'simpos_pos_order_network_printer/static/src/xml/*.xml',
+        ],
+    },
     'data': [
         'views/views.xml',
         'views/pos_restaurant_views.xml',

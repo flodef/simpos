@@ -15,9 +15,13 @@
     'category': 'Uncategorized',
     'version': '0.1',
     'depends': ['point_of_sale'],
-    'qweb': [
-        'static/src/xml/*.xml',
-    ],
+    'assets': {
+        'point_of_sale.assets': [
+            'simpos_customer_display/static/src/js/*.js',
+            'simpos_customer_display/static/src/xml/*.xml',
+            'simpos_customer_display/static/src/css/*.css',
+        ],
+    },
     'data': [
         'views/views.xml'
     ],

@@ -1,12 +1,11 @@
-odoo.define("simpos_receipt_network_printer.screens", function (require) {
-  "use strict";
+/** @odoo-module **/
 
-  var screens = require("point_of_sale.screens");
-  var core = require("web.core");
-  var QWeb = core.qweb;
+import { ReceiptScreen } from "@point_of_sale/app/screens/receipt_screen/receipt_screen";
+import { patch } from "@web/core/utils/patch";
+import { renderToString } from "@web/core/utils/render";
 
-  screens.ReceiptScreenWidget.include({
-    handle_auto_print: function () {
+patch(ReceiptScreen.prototype, {
+    handle_auto_print() {
       if (this.should_auto_print() && !this.pos.get_order().is_to_email()) {
         this.print(2);
         if (this.should_close_immediately()) {
@@ -16,50 +15,45 @@ odoo.define("simpos_receipt_network_printer.screens", function (require) {
         this.lock_screen(false);
       }
     },
-    print: function (time) {
-      var receipt = QWeb.render("OrderReceipt", this.get_receipt_render_env());
-      var self = this;
-
-      return this.htmlToImg(receipt).then(function (result) {
-        if (typeof simpos === "undefined") {
-          self.print_web();
+    async print(time) {
+      const receipt = await renderToString("OrderReceipt", this.get_receipt_render_env());
+      
+      const result = await this.htmlToImg(receipt);
+      if (typeof simpos === "undefined") {
+        this.print_web();
+      } else {
+        if (time === 2) {
+          javascript: simpos.printDoubleReceipt(result);
         } else {
-          if (time === 2) {
-            javascript: simpos.printDoubleReceipt(result);
-          } else {
-            javascript: simpos.printReceipt(result);
-          }
+          javascript: simpos.printReceipt(result);
         }
+      }
 
-        self.pos.get_order()._printed = true;
-        if (self.printOrder) {
-          self.printOrder();
-        }
-      });
+      this.pos.get_order()._printed = true;
+      if (this.printOrder) {
+        this.printOrder();
+      }
     },
-    htmlToImg: function (receipt) {
-      var self = this;
+    htmlToImg(receipt) {
       $(".pos-receipt-print").html(receipt);
-      var promise = new Promise(function (resolve, reject) {
-        self.receipt = $(".pos-receipt-print .pos-receipt");
-        html2canvas(self.receipt[0], {
-          onparsed: function (queue) {
+      return new Promise((resolve, reject) => {
+        this.receipt = $(".pos-receipt-print .pos-receipt");
+        html2canvas(this.receipt[0], {
+          onparsed: (queue) => {
             queue.stack.ctx.height = Math.ceil(
-              self.receipt.outerHeight() + self.receipt.offset().top
+              this.receipt.outerHeight() + this.receipt.offset().top
             );
           },
-          onrendered: function (canvas) {
+          onrendered: (canvas) => {
             $(".pos-receipt-print").empty();
-            resolve(self.process_canvas(canvas));
+            resolve(this.process_canvas(canvas));
           },
         });
       });
-      return promise;
     },
-    process_canvas: function (canvas) {
+    process_canvas(canvas) {
       return canvas
         .toDataURL("image/jpeg")
         .replace("data:image/jpeg;base64,", "");
     },
-  });
 });

@@ -13,6 +13,11 @@
     'category': 'Uncategorized',
     'version': '0.1',
     'depends': ['point_of_sale'],
+    'assets': {
+        'point_of_sale.assets': [
+            'simpos_sunmi_printer/static/src/js/*.js',
+        ],
+    },
     'data': [
         'views/views.xml'
     ],

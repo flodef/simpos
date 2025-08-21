@@ -1,15 +1,14 @@
-odoo.define("simpos_customer_display.screens", function(require) {
-    "use strict";
+/** @odoo-module **/
 
-    var OrderWidget = require("point_of_sale.screens").OrderWidget;
+import { OrderWidget } from "@point_of_sale/app/screens/product_screen/order_widget";
+import { patch } from "@web/core/utils/patch";
 
-    OrderWidget.include({
-        set_value: function(val) {
-            var order = this.pos.get_order();
-            if (order.get_selected_orderline()) {
-                this._super(val);
-                this.pos.simpos_send_current_order_to_customer_facing_display();
-            }
-        },
-    });
+patch(OrderWidget.prototype, {
+    set_value(val) {
+        const order = this.pos.get_order();
+        if (order.get_selected_orderline()) {
+            super.set_value(val);
+            this.pos.simpos_send_current_order_to_customer_facing_display();
+        }
+    },
 });

@@ -20,8 +20,11 @@
     'data': [
         'views/views.xml',
     ],
-    'qweb': [
-        'static/src/xml/vibration_card.xml',
-    ],
+    'assets': {
+        'point_of_sale.assets': [
+            'simpos_vibration_card/static/src/js/*.js',
+            'simpos_vibration_card/static/src/xml/*.xml',
+        ],
+    },
 
 }

@@ -13,6 +13,11 @@
     'category': 'Uncategorized',
     'version': '0.1',
     'depends': ['point_of_sale'],
+    'assets': {
+        'point_of_sale.assets': [
+            'simpos_receipt_network_printer/static/src/js/*.js',
+        ],
+    },
     'data': [
         'views/views.xml'
     ],
