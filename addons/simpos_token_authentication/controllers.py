@@ -28,9 +28,8 @@ class AuthTokenController(http.Controller):
         request.session.db = db_name
         _logger.info(f'Set session.db to: {request.session.db}')
         
-        # Direct password validation using Odoo's user model
+        # Use Odoo's native password verification
         from odoo import registry, SUPERUSER_ID
-        from passlib.context import CryptContext
         
         try:
             # Get database registry directly
@@ -42,31 +41,23 @@ class AuthTokenController(http.Controller):
                 # Find user by login
                 user = env['res.users'].search([('login', '=', args.get('login'))], limit=1)
                 
-                if user:
-                    # Check if user is active
-                    if not user.active:
-                        _logger.info(f'User {user.login} is inactive')
+                if user and user.active:
+                    try:
+                        # Use Odoo's native _check_credentials method
+                        user.with_context(no_reset_password=True)._check_credentials(args.get('password'))
+                        user_id = user.id
+                        
+                        # Set session manually
+                        request.session.uid = user_id
+                        request.session.db = db_name
+                        request.session.login = args.get('login')
+                        _logger.info(f'Odoo native authentication succeeded for user {user_id}')
+                        
+                    except Exception as cred_error:
+                        _logger.info(f'Credential validation failed: {cred_error}')
                         user_id = None
-                    else:
-                        # Use Odoo's password verification
-                        try:
-                            crypt_context = CryptContext(schemes=['pbkdf2_sha512'], deprecated='auto')
-                            valid = crypt_context.verify(args.get('password'), user.password)
-                            
-                            if valid:
-                                user_id = user.id
-                                request.session.uid = user_id
-                                request.session.db = db_name
-                                request.session.login = args.get('login')
-                                _logger.info(f'Password validation succeeded for user {user_id}')
-                            else:
-                                user_id = None
-                                _logger.info('Password validation failed')
-                        except Exception as pwd_error:
-                            _logger.error(f'Password check error: {pwd_error}')
-                            user_id = None
                 else:
-                    _logger.info(f'User not found: {args.get("login")}')
+                    _logger.info(f'User not found or inactive: {args.get("login")}')
                     user_id = None
                     
         except Exception as e:
