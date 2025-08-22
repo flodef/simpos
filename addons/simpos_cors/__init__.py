@@ -65,20 +65,38 @@ class CORSController(http.Controller):
                 response.headers['Content-Type'] = 'application/json'
                 return response
             
-            # Set database and authenticate (Odoo 18 - authenticate takes only login, password)
-            # Ensure we're connecting to the correct database
-            from odoo import registry
+            # Use Odoo's database dispatcher to authenticate properly
+            from odoo.service import db
+            from odoo.http import db_list
             
+            # Check if database exists
+            available_dbs = db_list()
+            _logger.info(f'Available databases: {available_dbs}')
+            
+            if db_name not in available_dbs:
+                response = self._make_cors_response(
+                    json.dumps({
+                        'error': f'Database {db_name} not found',
+                        'available_databases': available_dbs
+                    }),
+                    400
+                )
+                response.headers['Content-Type'] = 'application/json'
+                return response
+            
+            # Authenticate using the proper Odoo method
             try:
-                # Verify database exists
-                registry_obj = registry(db_name)
+                from odoo.service.security import check_db
+                check_db(db_name)
+                
+                # Use the exact same approach as working token auth controller
                 request.session.db = db_name
                 user_id = request.session.authenticate(login, password)
-            except Exception as db_error:
-                _logger.error(f'Database connection error for {db_name}: {str(db_error)}')
+            except Exception as auth_error:
+                _logger.error(f'Authentication error: {str(auth_error)}', exc_info=True)
                 response = self._make_cors_response(
-                    json.dumps({'error': f'Database {db_name} not accessible'}),
-                    500
+                    json.dumps({'error': 'Authentication failed'}),
+                    401
                 )
                 response.headers['Content-Type'] = 'application/json'
                 return response
