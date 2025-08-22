@@ -14,8 +14,9 @@ class AuthTokenController(http.Controller):
     @http.route('/simpos/v1/sign_in', type='json', auth='none')
     def get_token(self, **args):
         db_name = request.session.db
+        request.session.db = db_name
         user_id = request.session.authenticate(
-            db_name, args.get('login'), args.get('password'))
+            args.get('login'), args.get('password'))
 
         if user_id:
             request.session.uid = user_id
