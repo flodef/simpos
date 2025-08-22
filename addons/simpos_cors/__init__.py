@@ -28,6 +28,11 @@ class CORSController(http.Controller):
     def pos_metadata_options(self, **kwargs):
         """Handle OPTIONS preflight for /pos_metadata"""
         return self._make_cors_response()
+    
+    @http.route('/web/dataset/call_kw/<path:path>', type='http', auth='none', methods=['OPTIONS'], csrf=False)
+    def web_dataset_options(self, path=None, **kwargs):
+        """Handle OPTIONS preflight for /web/dataset/call_kw/* endpoints"""
+        return self._make_cors_response()
 
 
 # Simple function-level patching without breaking Odoo internals
