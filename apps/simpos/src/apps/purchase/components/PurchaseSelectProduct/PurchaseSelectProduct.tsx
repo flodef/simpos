@@ -27,7 +27,7 @@ export const PurchaseSelectProduct: React.FunctionComponent = () => {
       cid
         ? [
             '&',
-            ['pos_categ_id', 'child_of', cid],
+            ['categ_id', 'child_of', cid],
             ['type', '=', 'product'],
             ['purchase_ok', '=', true],
             '|',
