@@ -19,102 +19,10 @@ class CORSController(http.Controller):
         response.headers['Access-Control-Max-Age'] = '86400'
         return response
     
-    @http.route('/exchange_token', type='http', auth='none', methods=['OPTIONS', 'POST'], csrf=False)
-    def exchange_token(self, **kwargs):
-        """Handle /exchange_token authentication endpoint"""
-        if http.request.httprequest.method == 'OPTIONS':
-            return self._make_cors_response()
-        
-        # Handle POST request - bridge to actual authentication
-        try:
-            import json
-            from odoo import registry, SUPERUSER_ID
-            from odoo.http import request
-            
-            # Get parameters from request body (axios sends JSON)
-            params = {}
-            try:
-                # Try to get JSON body data
-                raw_data = request.httprequest.get_data()
-                if raw_data:
-                    data = json.loads(raw_data.decode('utf-8'))
-                    params = data.get('params', data)  # Handle both nested and flat structures
-                else:
-                    # Fallback to query params or form data
-                    params = dict(request.httprequest.values)
-            except:
-                # Last fallback - try form/query params
-                params = dict(request.httprequest.values)
-            
-            db_name = params.get('db')
-            login = params.get('login')
-            password = params.get('password')
-            
-            # Debug logging
-            _logger.info(f'/exchange_token received params: {params}')
-            _logger.info(f'db_name: {db_name}, login: {login}, password: {"***" if password else None}')
-            _logger.info(f'Raw request data: {request.httprequest.get_data()}')
-            
-            if not all([db_name, login, password]):
-                response = self._make_cors_response(
-                    json.dumps({
-                        'error': 'Missing required parameters: db, login, password',
-                        'received_params': list(params.keys()) if params else []
-                    }),
-                    400
-                )
-                response.headers['Content-Type'] = 'application/json'
-                return response
-            
-            # Simple authentication like in simpos_token_authentication
-            # First check current session database
-            _logger.info(f'Current session.db before: {getattr(request.session, "db", None)}')
-            
-            # Set database and authenticate exactly like the working controller
-            request.session.db = db_name
-            _logger.info(f'Set session.db to: {request.session.db}')
-            
-            # Authenticate using Odoo 18 method (session.db must be set first)
-            user_id = request.session.authenticate(login, password)
-            _logger.info(f'Authentication result: user_id={user_id}')
-            
-            if user_id:
-                request.session.uid = user_id
-                request.session.login = login
-                # Success - return session info similar to /simpos/v1/sign_in
-                # Get user info using request.env (like in token auth)
-                user = request.env['res.users'].sudo().browse(user_id)
-                user._update_last_login()
-                
-                result = {
-                    'uid': user_id,
-                    'session_id': request.session.sid,
-                    'user_context': request.session.context,
-                    'username': user.name,
-                    'login': user.login,
-                    'db_name': db_name,
-                }
-                    
-                response = self._make_cors_response(json.dumps(result))
-                response.headers['Content-Type'] = 'application/json'
-                return response
-            else:
-                # Authentication failed
-                response = self._make_cors_response(
-                    json.dumps({'error': 'Invalid credentials'}),
-                    401
-                )
-                response.headers['Content-Type'] = 'application/json'
-                return response
-                
-        except Exception as e:
-            _logger.error(f'Error in /exchange_token: {str(e)}', exc_info=True)
-            response = self._make_cors_response(
-                json.dumps({'error': 'Authentication error'}),
-                500
-            )
-            response.headers['Content-Type'] = 'application/json'
-            return response
+    @http.route('/simpos/v1/sign_in', type='http', auth='none', methods=['OPTIONS'], csrf=False)
+    def simpos_sign_in_options(self, **kwargs):
+        """Handle OPTIONS preflight for /simpos/v1/sign_in"""
+        return self._make_cors_response()
     
     @http.route('/pos_metadata', type='http', auth='none', methods=['OPTIONS'], csrf=False)
     def pos_metadata_options(self, **kwargs):
