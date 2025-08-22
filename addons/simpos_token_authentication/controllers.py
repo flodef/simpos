@@ -13,7 +13,11 @@ def make_error(message):
 class AuthTokenController(http.Controller):
     @http.route('/simpos/v1/sign_in', type='json', auth='none')
     def get_token(self, **args):
-        db_name = request.session.db
+        # Get database name from request parameters
+        db_name = args.get('db') or request.session.db
+        if not db_name:
+            return make_error('Database name is required')
+        
         request.session.db = db_name
         user_id = request.session.authenticate(
             args.get('login'), args.get('password'))
