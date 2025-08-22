@@ -20,9 +20,11 @@ export interface ServerMetadata {
 export const authService = {
   login: (params: LoginParams) => {
     return simApi.post('/simpos/v1/sign_in', {
-      db: import.meta.env.VITE_ODOO_DB,
-      login: params.login,
-      password: params.password,
+      params: {
+        db: import.meta.env.VITE_ODOO_DB,
+        login: params.login,
+        password: params.password,
+      },
     });
   },
   saveAuthMeta: async (authMeta: AuthUserMeta) => {
