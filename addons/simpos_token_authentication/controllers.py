@@ -26,8 +26,17 @@ class AuthTokenController(http.Controller):
             return make_error('Database name is required')
         
         request.session.db = db_name
-        user_id = request.session.authenticate(
-            args.get('login'), args.get('password'))
+        _logger.info(f'Set session.db to: {request.session.db}')
+        
+        # Use the correct Odoo 18 authenticate signature
+        try:
+            user_id = request.session.authenticate(db_name, args.get('login'), args.get('password'))
+            _logger.info(f'authenticate(db, login, pass) succeeded: {user_id}')
+        except TypeError as e:
+            _logger.info(f'3-param authenticate failed: {e}, trying 2-param')
+            # Some Odoo 18 versions use 2 params after setting session.db
+            user_id = request.session.authenticate(args.get('login'), args.get('password'))
+            _logger.info(f'authenticate(login, pass) result: {user_id}')
 
         if user_id:
             request.session.uid = user_id
