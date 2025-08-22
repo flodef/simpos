@@ -53,6 +53,7 @@ class CORSController(http.Controller):
             # Debug logging
             _logger.info(f'/exchange_token received params: {params}')
             _logger.info(f'db_name: {db_name}, login: {login}, password: {"***" if password else None}')
+            _logger.info(f'Raw request data: {request.httprequest.get_data()}')
             
             if not all([db_name, login, password]):
                 response = self._make_cors_response(
@@ -65,38 +66,24 @@ class CORSController(http.Controller):
                 response.headers['Content-Type'] = 'application/json'
                 return response
             
-            # Use Odoo's database dispatcher to authenticate properly
-            from odoo.service import db
-            from odoo.http import db_list
+            # Simple authentication like in simpos_token_authentication
+            # First check current session database
+            _logger.info(f'Current session.db before: {getattr(request.session, "db", None)}')
             
-            # Check if database exists
-            available_dbs = db_list()
-            _logger.info(f'Available databases: {available_dbs}')
+            # Set database and authenticate exactly like the working controller
+            request.session.db = db_name
+            _logger.info(f'Set session.db to: {request.session.db}')
             
-            if db_name not in available_dbs:
-                response = self._make_cors_response(
-                    json.dumps({
-                        'error': f'Database {db_name} not found',
-                        'available_databases': available_dbs
-                    }),
-                    400
-                )
-                response.headers['Content-Type'] = 'application/json'
-                return response
-            
-            # Authenticate using the proper Odoo method
+            # Try different authenticate signatures since Odoo 18 changed
             try:
-                # Use the exact same approach as working token auth controller
-                request.session.db = db_name
+                # Try with db_name first (like token auth controller)
+                user_id = request.session.authenticate(db_name, login, password)
+            except TypeError as te:
+                _logger.info(f'First authenticate method failed: {te}, trying without db_name')
+                # Try without db_name if that fails
                 user_id = request.session.authenticate(login, password)
-            except Exception as auth_error:
-                _logger.error(f'Authentication error: {str(auth_error)}', exc_info=True)
-                response = self._make_cors_response(
-                    json.dumps({'error': 'Authentication failed'}),
-                    401
-                )
-                response.headers['Content-Type'] = 'application/json'
-                return response
+            
+            _logger.info(f'Authentication result: user_id={user_id}')
             
             if user_id:
                 request.session.uid = user_id
