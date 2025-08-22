@@ -31,25 +31,35 @@ class CORSController(http.Controller):
             from odoo import registry, SUPERUSER_ID
             from odoo.http import request
             
-            # Get parameters from request
-            if hasattr(request, 'jsonrequest') and request.jsonrequest:
-                params = request.jsonrequest.get('params', {})
-            else:
-                # Try to get from form data or query params
+            # Get parameters from request body (axios sends JSON)
+            params = {}
+            try:
+                # Try to get JSON body data
+                raw_data = request.httprequest.get_data()
+                if raw_data:
+                    data = json.loads(raw_data.decode('utf-8'))
+                    params = data.get('params', data)  # Handle both nested and flat structures
+                else:
+                    # Fallback to query params or form data
+                    params = dict(request.httprequest.values)
+            except:
+                # Last fallback - try form/query params
                 params = dict(request.httprequest.values)
-                if 'params' in params:
-                    try:
-                        params = json.loads(params['params'])
-                    except:
-                        pass
             
             db_name = params.get('db')
             login = params.get('login')
             password = params.get('password')
             
+            # Debug logging
+            _logger.info(f'/exchange_token received params: {params}')
+            _logger.info(f'db_name: {db_name}, login: {login}, password: {"***" if password else None}')
+            
             if not all([db_name, login, password]):
                 response = self._make_cors_response(
-                    json.dumps({'error': 'Missing required parameters: db, login, password'}),
+                    json.dumps({
+                        'error': 'Missing required parameters: db, login, password',
+                        'received_params': list(params.keys()) if params else []
+                    }),
                     400
                 )
                 response.headers['Content-Type'] = 'application/json'
@@ -85,7 +95,7 @@ class CORSController(http.Controller):
                 return response
                 
         except Exception as e:
-            _logger.error(f'Error in /exchange_token: {str(e)}')
+            _logger.error(f'Error in /exchange_token: {str(e)}', exc_info=True)
             response = self._make_cors_response(
                 json.dumps({'error': 'Authentication error'}),
                 500
