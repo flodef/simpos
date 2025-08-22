@@ -1,5 +1,6 @@
-from odoo import http
+from odoo import http, api
 import logging
+import json
 from werkzeug.wrappers import Response
 
 _logger = logging.getLogger(__name__)
@@ -18,10 +19,79 @@ class CORSController(http.Controller):
         response.headers['Access-Control-Max-Age'] = '86400'
         return response
     
-    @http.route('/exchange_token', type='http', auth='none', methods=['OPTIONS'], csrf=False)
-    def exchange_token_options(self, **kwargs):
-        """Handle OPTIONS preflight for /exchange_token"""
-        return self._make_cors_response()
+    @http.route('/exchange_token', type='http', auth='none', methods=['OPTIONS', 'POST'], csrf=False)
+    def exchange_token(self, **kwargs):
+        """Handle /exchange_token authentication endpoint"""
+        if http.request.httprequest.method == 'OPTIONS':
+            return self._make_cors_response()
+        
+        # Handle POST request - bridge to actual authentication
+        try:
+            import json
+            from odoo import registry, SUPERUSER_ID
+            from odoo.http import request
+            
+            # Get parameters from request
+            if hasattr(request, 'jsonrequest') and request.jsonrequest:
+                params = request.jsonrequest.get('params', {})
+            else:
+                # Try to get from form data or query params
+                params = dict(request.httprequest.values)
+                if 'params' in params:
+                    try:
+                        params = json.loads(params['params'])
+                    except:
+                        pass
+            
+            db_name = params.get('db')
+            login = params.get('login')
+            password = params.get('password')
+            
+            if not all([db_name, login, password]):
+                response = self._make_cors_response(
+                    json.dumps({'error': 'Missing required parameters: db, login, password'}),
+                    400
+                )
+                response.headers['Content-Type'] = 'application/json'
+                return response
+            
+            # Authenticate using Odoo's session system
+            request.session.authenticate(db_name, login, password)
+            
+            if request.session.uid:
+                # Success - return session info similar to /simpos/v1/sign_in
+                with registry(db_name).cursor() as cr:
+                    env = api.Environment(cr, request.session.uid, {})
+                    user = env.user
+                    
+                    result = {
+                        'uid': request.session.uid,
+                        'session_id': request.session.sid,
+                        'user_context': request.session.context,
+                        'username': user.name,
+                        'login': user.login,
+                    }
+                    
+                response = self._make_cors_response(json.dumps(result))
+                response.headers['Content-Type'] = 'application/json'
+                return response
+            else:
+                # Authentication failed
+                response = self._make_cors_response(
+                    json.dumps({'error': 'Invalid credentials'}),
+                    401
+                )
+                response.headers['Content-Type'] = 'application/json'
+                return response
+                
+        except Exception as e:
+            _logger.error(f'Error in /exchange_token: {str(e)}')
+            response = self._make_cors_response(
+                json.dumps({'error': 'Authentication error'}),
+                500
+            )
+            response.headers['Content-Type'] = 'application/json'
+            return response
     
     @http.route('/pos_metadata', type='http', auth='none', methods=['OPTIONS'], csrf=False)
     def pos_metadata_options(self, **kwargs):
