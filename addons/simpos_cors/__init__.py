@@ -66,8 +66,22 @@ class CORSController(http.Controller):
                 return response
             
             # Set database and authenticate (Odoo 18 - authenticate takes only login, password)
-            request.session.db = db_name
-            user_id = request.session.authenticate(login, password)
+            # Ensure we're connecting to the correct database
+            from odoo import registry
+            
+            try:
+                # Verify database exists
+                registry_obj = registry(db_name)
+                request.session.db = db_name
+                user_id = request.session.authenticate(login, password)
+            except Exception as db_error:
+                _logger.error(f'Database connection error for {db_name}: {str(db_error)}')
+                response = self._make_cors_response(
+                    json.dumps({'error': f'Database {db_name} not accessible'}),
+                    500
+                )
+                response.headers['Content-Type'] = 'application/json'
+                return response
             
             if user_id:
                 request.session.uid = user_id
