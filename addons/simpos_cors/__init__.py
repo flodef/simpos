@@ -65,9 +65,9 @@ class CORSController(http.Controller):
                 response.headers['Content-Type'] = 'application/json'
                 return response
             
-            # Set database and authenticate (exact pattern from simpos_token_authentication)
+            # Set database and authenticate (Odoo 18 - authenticate takes only login, password)
             request.session.db = db_name
-            user_id = request.session.authenticate(db_name, login, password)
+            user_id = request.session.authenticate(login, password)
             
             if user_id:
                 request.session.uid = user_id
