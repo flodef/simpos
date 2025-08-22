@@ -28,42 +28,49 @@ class AuthTokenController(http.Controller):
         request.session.db = db_name
         _logger.info(f'Set session.db to: {request.session.db}')
         
-        # Use low-level authentication to bypass session.authenticate issues
-        from odoo.service.model import check
+        # Direct password validation using Odoo's user model
         from odoo import registry, SUPERUSER_ID
+        from passlib.context import CryptContext
         
         try:
-            # Direct credential check using Odoo's internal methods
-            db_registry = registry(db_name)
+            # Get database registry directly
+            reg = registry(db_name)
             
-            with db_registry.cursor() as cr:
+            with reg.cursor() as cr:
                 env = api.Environment(cr, SUPERUSER_ID, {})
                 
-                # Find and authenticate user directly
-                users = env['res.users'].search([('login', '=', args.get('login'))])
-                user_id = None
+                # Find user by login
+                user = env['res.users'].search([('login', '=', args.get('login'))], limit=1)
                 
-                for user in users:
-                    try:
-                        # Check password directly
-                        user._check_credentials(args.get('password'), {'interactive': True})
-                        user_id = user.id
-                        _logger.info(f'User {user.login} authenticated successfully with uid {user_id}')
-                        break
-                    except:
-                        continue
-                
-                if user_id:
-                    # Set session state manually
-                    request.session.uid = user_id
-                    request.session.db = db_name 
-                    request.session.login = args.get('login')
-                    _logger.info(f'Session configured for user {user_id}')
+                if user:
+                    # Check if user is active
+                    if not user.active:
+                        _logger.info(f'User {user.login} is inactive')
+                        user_id = None
+                    else:
+                        # Use Odoo's password verification
+                        try:
+                            crypt_context = CryptContext(schemes=['pbkdf2_sha512'], deprecated='auto')
+                            valid = crypt_context.verify(args.get('password'), user.password)
+                            
+                            if valid:
+                                user_id = user.id
+                                request.session.uid = user_id
+                                request.session.db = db_name
+                                request.session.login = args.get('login')
+                                _logger.info(f'Password validation succeeded for user {user_id}')
+                            else:
+                                user_id = None
+                                _logger.info('Password validation failed')
+                        except Exception as pwd_error:
+                            _logger.error(f'Password check error: {pwd_error}')
+                            user_id = None
                 else:
-                    _logger.info('No valid user found for provided credentials')
+                    _logger.info(f'User not found: {args.get("login")}')
+                    user_id = None
                     
         except Exception as e:
-            _logger.error(f'Authentication error: {e}', exc_info=True)
+            _logger.error(f'Authentication system error: {e}', exc_info=True)
             user_id = None
 
         if user_id:
