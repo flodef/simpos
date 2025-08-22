@@ -2,7 +2,7 @@
 {
     'name': 'SIMPOS CORS',
     'summary': 'CORS support for SIMPOS REST API',
-    'version': '1.0.0.0',
+    'version': '18.0.1.0',
     'author': 'FIMS Integrated Management Systems Oy',
     'website': 'https://fims.fi',
     'category': 'Point of Sale',
