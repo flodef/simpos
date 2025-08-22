@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-from odoo import http
+from odoo import http, api
 from odoo.http import request
 from datetime import datetime, timedelta
 import jwt
@@ -28,15 +28,43 @@ class AuthTokenController(http.Controller):
         request.session.db = db_name
         _logger.info(f'Set session.db to: {request.session.db}')
         
-        # Use the correct Odoo 18 authenticate signature
+        # Use low-level authentication to bypass session.authenticate issues
+        from odoo.service.model import check
+        from odoo import registry, SUPERUSER_ID
+        
         try:
-            user_id = request.session.authenticate(db_name, args.get('login'), args.get('password'))
-            _logger.info(f'authenticate(db, login, pass) succeeded: {user_id}')
-        except TypeError as e:
-            _logger.info(f'3-param authenticate failed: {e}, trying 2-param')
-            # Some Odoo 18 versions use 2 params after setting session.db
-            user_id = request.session.authenticate(args.get('login'), args.get('password'))
-            _logger.info(f'authenticate(login, pass) result: {user_id}')
+            # Direct credential check using Odoo's internal methods
+            db_registry = registry(db_name)
+            
+            with db_registry.cursor() as cr:
+                env = api.Environment(cr, SUPERUSER_ID, {})
+                
+                # Find and authenticate user directly
+                users = env['res.users'].search([('login', '=', args.get('login'))])
+                user_id = None
+                
+                for user in users:
+                    try:
+                        # Check password directly
+                        user._check_credentials(args.get('password'), {'interactive': True})
+                        user_id = user.id
+                        _logger.info(f'User {user.login} authenticated successfully with uid {user_id}')
+                        break
+                    except:
+                        continue
+                
+                if user_id:
+                    # Set session state manually
+                    request.session.uid = user_id
+                    request.session.db = db_name 
+                    request.session.login = args.get('login')
+                    _logger.info(f'Session configured for user {user_id}')
+                else:
+                    _logger.info('No valid user found for provided credentials')
+                    
+        except Exception as e:
+            _logger.error(f'Authentication error: {e}', exc_info=True)
+            user_id = None
 
         if user_id:
             request.session.uid = user_id
