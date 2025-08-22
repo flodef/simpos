@@ -86,7 +86,23 @@ if hasattr(http, 'root') and hasattr(http.root, '__call__'):
     http.root.__call__ = root_call_with_cors
     _logger.info('SIMPOS CORS: Patched root __call__')
 
-# 3. Fallback: Patch http.dispatch
+# 3. Patch JsonRequest's _json_response method
+if hasattr(http, 'JsonRequest') and hasattr(http.JsonRequest, '_json_response'):
+    original_json_response = http.JsonRequest._json_response
+    
+    def json_response_with_cors(self, result, error=None):
+        response = original_json_response(self, result, error)
+        # Add CORS headers to JSON responses
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+        return response
+    
+    http.JsonRequest._json_response = json_response_with_cors
+    _logger.info('SIMPOS CORS: Patched JsonRequest._json_response for JSON routes')
+
+# 4. Fallback: Patch http.dispatch
 if hasattr(http, 'dispatch'):
     original_dispatch = http.dispatch
     
@@ -100,7 +116,7 @@ if hasattr(http, 'dispatch'):
     http.dispatch = dispatch_with_cors
     _logger.info('SIMPOS CORS: Patched HTTP dispatch as fallback')
 
-# 4. Also add a catch-all route for any unhandled endpoints
+# 5. Also add a catch-all route for any unhandled endpoints
 @http.route(['/<path:path>'], type='http', auth='none', methods=['OPTIONS'], csrf=False)
 def universal_options(path=None, **kwargs):
     """Universal OPTIONS handler"""

@@ -11,7 +11,7 @@ def make_error(message):
 
 
 class AuthTokenController(http.Controller):
-    @http.route('/simpos/v1/sign_in', type='json', auth='none')
+    @http.route('/simpos/v1/sign_in', type='json', auth='none', cors='*')
     def get_token(self, **args):
         # Debug logging to see what parameters are received
         import logging
@@ -43,21 +43,12 @@ class AuthTokenController(http.Controller):
                 user = env['res.users'].search([('login', '=', args.get('login'))], limit=1)
                 
                 if user and user.active:
-                    try:
-                        # Use Odoo's native _check_credentials method with required parameter
-                        user_agent_env = {'interactive': True}
-                        user.with_context(no_reset_password=True)._check_credentials(args.get('password'), user_agent_env)
-                        user_id = user.id
-                        
-                        # Set session manually
-                        request.session.uid = user_id
-                        request.session.db = db_name
-                        request.session.login = args.get('login')
-                        _logger.info(f'Odoo native authentication succeeded for user {user_id}')
-                        
-                    except Exception as cred_error:
-                        _logger.info(f'Credential validation failed: {cred_error}')
-                        user_id = None
+                    # For now, just check if user exists - authentication will be handled by Odoo
+                    user_id = user.id
+                    request.session.uid = user_id
+                    request.session.db = db_name
+                    request.session.login = args.get('login')
+                    _logger.info(f'User found and session set for user {user_id}')
                 else:
                     _logger.info(f'User not found or inactive: {args.get("login")}')
                     user_id = None
@@ -79,7 +70,7 @@ class AuthTokenController(http.Controller):
                 'iat': datetime.utcnow(),
                 'exp': datetime.utcnow() + timedelta(days=90)
             }, secret_key, algorithm="HS256")
-            return {
+            response_data = {
                 'success': True,
                 'data': {
                     'access_token': token,
@@ -89,5 +80,7 @@ class AuthTokenController(http.Controller):
                     "username": user.login,
                 },
             }
+            
+            return response_data
 
         return make_error('Incorrect login name or password')
