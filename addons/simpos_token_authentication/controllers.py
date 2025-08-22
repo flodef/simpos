@@ -32,8 +32,9 @@ class AuthTokenController(http.Controller):
         from odoo import registry, SUPERUSER_ID
         
         try:
-            # Get database registry directly
-            reg = registry(db_name)
+            # Get database registry directly (fix deprecation warning)
+            from odoo.modules.registry import Registry
+            reg = Registry(db_name)
             
             with reg.cursor() as cr:
                 env = api.Environment(cr, SUPERUSER_ID, {})
@@ -43,8 +44,9 @@ class AuthTokenController(http.Controller):
                 
                 if user and user.active:
                     try:
-                        # Use Odoo's native _check_credentials method
-                        user.with_context(no_reset_password=True)._check_credentials(args.get('password'))
+                        # Use Odoo's native _check_credentials method with required parameter
+                        user_agent_env = {'interactive': True}
+                        user.with_context(no_reset_password=True)._check_credentials(args.get('password'), user_agent_env)
                         user_id = user.id
                         
                         # Set session manually

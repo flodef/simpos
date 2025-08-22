@@ -1,20 +1,15 @@
 # -*- coding: utf-8 -*-
 {
-    'name': "Simpos Vibration Cards",
-
-    'summary': """
-        Simpos Vibration Cards""",
-
+    'name': 'SIMPOS Vibration Card',
+    'summary': 'Vibration payment card support for SIMPOS',
     'description': """
         Simpos Vibration Cards
     """,
-
-    'author': "Hieu Tran",
-    'website': "http://youngtailors.com",
-
-    'category': 'Uncategorized',
-    'version': '0.1',
-
+    'version': '1.0.0.0',
+    'author': 'FIMS Integrated Management Systems Oy',
+    'website': 'https://fims.fi',
+    'category': 'Point of Sale',
+    'license': 'LGPL-3',
     'depends': ['point_of_sale'],
 
     'data': [
