@@ -74,15 +74,8 @@ class CORSController(http.Controller):
             request.session.db = db_name
             _logger.info(f'Set session.db to: {request.session.db}')
             
-            # Try different authenticate signatures since Odoo 18 changed
-            try:
-                # Try with db_name first (like token auth controller)
-                user_id = request.session.authenticate(db_name, login, password)
-            except TypeError as te:
-                _logger.info(f'First authenticate method failed: {te}, trying without db_name')
-                # Try without db_name if that fails
-                user_id = request.session.authenticate(login, password)
-            
+            # Authenticate using Odoo 18 method (session.db must be set first)
+            user_id = request.session.authenticate(login, password)
             _logger.info(f'Authentication result: user_id={user_id}')
             
             if user_id:
