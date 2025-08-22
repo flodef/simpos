@@ -86,9 +86,6 @@ class CORSController(http.Controller):
             
             # Authenticate using the proper Odoo method
             try:
-                from odoo.service.security import check_db
-                check_db(db_name)
-                
                 # Use the exact same approach as working token auth controller
                 request.session.db = db_name
                 user_id = request.session.authenticate(login, password)
