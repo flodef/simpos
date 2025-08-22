@@ -65,22 +65,26 @@ class CORSController(http.Controller):
                 response.headers['Content-Type'] = 'application/json'
                 return response
             
-            # Authenticate using Odoo's session system
-            request.session.authenticate(db_name, login, password)
+            # Set database and authenticate (exact pattern from simpos_token_authentication)
+            request.session.db = db_name
+            user_id = request.session.authenticate(db_name, login, password)
             
-            if request.session.uid:
+            if user_id:
+                request.session.uid = user_id
+                request.session.login = login
                 # Success - return session info similar to /simpos/v1/sign_in
-                with registry(db_name).cursor() as cr:
-                    env = api.Environment(cr, request.session.uid, {})
-                    user = env.user
-                    
-                    result = {
-                        'uid': request.session.uid,
-                        'session_id': request.session.sid,
-                        'user_context': request.session.context,
-                        'username': user.name,
-                        'login': user.login,
-                    }
+                # Get user info using request.env (like in token auth)
+                user = request.env['res.users'].sudo().browse(user_id)
+                user._update_last_login()
+                
+                result = {
+                    'uid': user_id,
+                    'session_id': request.session.sid,
+                    'user_context': request.session.context,
+                    'username': user.name,
+                    'login': user.login,
+                    'db_name': db_name,
+                }
                     
                 response = self._make_cors_response(json.dumps(result))
                 response.headers['Content-Type'] = 'application/json'
