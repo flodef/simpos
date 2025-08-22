@@ -1,6 +1,5 @@
 from odoo import http
 from odoo.tools import config
-from odoo.service import wsgi_server
 import logging
 from werkzeug.wrappers import Response
 
@@ -43,69 +42,91 @@ class CORSMiddleware(object):
         return self.app(environ, cors_start_response)
 
 
-# Patch Odoo's WSGI application with CORS middleware
-def patch_wsgi_server():
-    """Patch the WSGI server to include CORS middleware"""
+# Patch Odoo's HTTP dispatcher with CORS middleware
+def patch_http_dispatcher():
+    """Patch the HTTP dispatcher to include CORS middleware"""
     try:
-        # Get the original application
-        if hasattr(wsgi_server, 'application'):
-            original_app = wsgi_server.application
-            # Wrap it with CORS middleware
-            wsgi_server.application = CORSMiddleware(original_app)
-            _logger.info('SIMPOS CORS: Successfully patched WSGI server with CORS middleware')
+        # Patch the main HTTP dispatch function
+        if hasattr(http, 'dispatch_rpc'):
+            original_dispatch_rpc = http.dispatch_rpc
+            
+            def dispatch_rpc_with_cors(service_name, method, params):
+                response = original_dispatch_rpc(service_name, method, params)
+                # Add CORS headers to RPC responses
+                return response
+            
+            http.dispatch_rpc = dispatch_rpc_with_cors
+            _logger.info('SIMPOS CORS: Successfully patched RPC dispatcher')
             return True
     except Exception as e:
-        _logger.error(f'SIMPOS CORS: Failed to patch WSGI server: {e}')
+        _logger.error(f'SIMPOS CORS: Failed to patch RPC dispatcher: {e}')
     
     return False
 
 
-# Alternative approach: Patch HTTP root
-def patch_http_root():
-    """Patch HTTP root application"""
-    try:
-        if hasattr(http, 'root') and hasattr(http.root, 'dispatch'):
-            original_app = http.root.dispatch
-            http.root.dispatch = CORSMiddleware(original_app)
-            _logger.info('SIMPOS CORS: Successfully patched HTTP root with CORS middleware')
-            return True
-    except Exception as e:
-        _logger.error(f'SIMPOS CORS: Failed to patch HTTP root: {e}')
+# Simple controller-based approach for Odoo 18
+class UniversalCORSController(http.Controller):
+    """Universal CORS controller for all endpoints"""
     
-    return False
-
-
-# Apply CORS patches
-patch_success = patch_wsgi_server() or patch_http_root()
-
-if not patch_success:
-    _logger.warning('SIMPOS CORS: Could not apply WSGI middleware, falling back to response patching')
-    
-    # Fallback: Patch individual responses
-    original_make_response = None
-    if hasattr(http.request, 'make_response'):
-        original_make_response = http.request.make_response
-    
-    def make_response_with_cors(data, headers=None, cookies=None, status=200):
-        """Add CORS headers to responses"""
-        if original_make_response:
-            response = original_make_response(data, headers, cookies, status)
-        else:
-            response = Response(data, status=status, headers=headers)
-        
-        # Add CORS headers
+    @http.route('/exchange_token', type='http', auth='none', methods=['OPTIONS'], csrf=False)
+    def exchange_token_options(self, **kwargs):
+        """Handle OPTIONS for exchange_token"""
+        response = Response('')
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
         response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE'
-        
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+        response.headers['Access-Control-Max-Age'] = '86400'
         return response
     
-    # Try to patch make_response
-    try:
-        if hasattr(http, 'request'):
-            http.request.make_response = make_response_with_cors
-    except:
-        pass
+    @http.route('/pos_metadata', type='http', auth='none', methods=['OPTIONS'], csrf=False)
+    def pos_metadata_options(self, **kwargs):
+        """Handle OPTIONS for pos_metadata"""
+        response = Response('')
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+        response.headers['Access-Control-Max-Age'] = '86400'
+        return response
+
+
+# Apply CORS patches
+patch_success = patch_http_dispatcher()
+
+# Hook into Odoo's response system for CORS headers
+original_response_class = http.Response if hasattr(http, 'Response') else Response
+
+class CORSResponse(original_response_class):
+    """Response class that automatically adds CORS headers"""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add CORS headers to every response
+        self.headers['Access-Control-Allow-Origin'] = '*'
+        self.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+        self.headers['Access-Control-Allow-Credentials'] = 'true'
+        self.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+
+# Monkey patch the Response class
+if hasattr(http, 'Response'):
+    http.Response = CORSResponse
+
+# Also patch werkzeug Response for completeness  
+try:
+    import werkzeug.wrappers
+    original_werkzeug_response = werkzeug.wrappers.Response
+    
+    def patched_response(*args, **kwargs):
+        response = original_werkzeug_response(*args, **kwargs)
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+        return response
+    
+    werkzeug.wrappers.Response = patched_response
+except:
+    pass
 
 _logger.info('SIMPOS CORS: Odoo 18 CORS middleware initialization complete')
