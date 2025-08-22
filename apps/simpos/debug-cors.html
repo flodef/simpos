@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Debug Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        textarea { width: 100%; height: 200px; margin: 10px 0; }
+        .header-info { font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 3px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>CORS Debug Tool for SimPOS</h1>
+    
+    <div class="section">
+        <h3>Backend Server URL</h3>
+        <input type="text" id="serverUrl" placeholder="http://your-server:8069" style="width: 300px; padding: 5px;">
+        <button onclick="updateServer()">Update Server</button>
+        <p><small>Enter your remote Odoo server URL (e.g., http://192.168.1.100:8069)</small></p>
+    </div>
+
+    <div class="section">
+        <h3>Test 1: OPTIONS Preflight Request</h3>
+        <button onclick="testOptionsRequest()">Test OPTIONS</button>
+        <div id="optionsResult"></div>
+    </div>
+
+    <div class="section">
+        <h3>Test 2: Actual JSON POST Request</h3>
+        <button onclick="testJsonRequest()">Test JSON POST</button>
+        <div id="jsonResult"></div>
+    </div>
+
+    <div class="section">
+        <h3>Test 3: Sign-in Endpoint</h3>
+        <button onclick="testSigninRequest()">Test Sign-in</button>
+        <div id="signinResult"></div>
+    </div>
+
+    <div class="section">
+        <h3>Raw Response Headers</h3>
+        <textarea id="headersLog" readonly placeholder="Response headers will appear here..."></textarea>
+    </div>
+
+    <script>
+        let serverUrl = 'http://localhost:8069'; // Default
+
+        function updateServer() {
+            const input = document.getElementById('serverUrl');
+            if (input.value.trim()) {
+                serverUrl = input.value.trim();
+                log(`Server URL updated to: ${serverUrl}`);
+            }
+        }
+
+        function log(message) {
+            const textarea = document.getElementById('headersLog');
+            textarea.value += new Date().toISOString() + ': ' + message + '\n';
+            textarea.scrollTop = textarea.scrollHeight;
+        }
+
+        function displayResult(elementId, success, message, headers = null) {
+            const element = document.getElementById(elementId);
+            element.className = 'section ' + (success ? 'success' : 'error');
+            element.innerHTML = `<strong>${success ? '✅ SUCCESS' : '❌ ERROR'}:</strong> ${message}`;
+            
+            if (headers) {
+                let corsHeaders = '';
+                for (const [key, value] of headers.entries()) {
+                    if (key.toLowerCase().startsWith('access-control')) {
+                        corsHeaders += `<div class="header-info">${key}: ${value}</div>`;
+                    }
+                }
+                if (corsHeaders) {
+                    element.innerHTML += '<h4>CORS Headers Found:</h4>' + corsHeaders;
+                } else {
+                    element.innerHTML += '<div class="warning">⚠️ No CORS headers found in response</div>';
+                }
+            }
+        }
+
+        async function testOptionsRequest() {
+            log('Testing OPTIONS preflight request...');
+            try {
+                const response = await fetch(`${serverUrl}/web/dataset/call_kw/res.users/search_read`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'content-type'
+                    }
+                });
+
+                log(`OPTIONS Response: ${response.status} ${response.statusText}`);
+                displayResult('optionsResult', response.ok, `OPTIONS request returned ${response.status}`, response.headers);
+                
+            } catch (error) {
+                log(`OPTIONS Error: ${error.message}`);
+                displayResult('optionsResult', false, `OPTIONS request failed: ${error.message}`);
+            }
+        }
+
+        async function testJsonRequest() {
+            log('Testing JSON POST request...');
+            try {
+                const response = await fetch(`${serverUrl}/web/dataset/call_kw/res.users/search_read`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'call',
+                        params: {
+                            model: 'res.users',
+                            method: 'search_read',
+                            args: [[]],
+                            kwargs: { fields: ['name'], limit: 1 }
+                        },
+                        id: 1
+                    })
+                });
+
+                log(`JSON Response: ${response.status} ${response.statusText}`);
+                displayResult('jsonResult', response.ok, `JSON POST request returned ${response.status}`, response.headers);
+                
+                const responseText = await response.text();
+                log(`Response body preview: ${responseText.substring(0, 200)}...`);
+                
+            } catch (error) {
+                log(`JSON Error: ${error.message}`);
+                displayResult('jsonResult', false, `JSON POST request failed: ${error.message}`);
+            }
+        }
+
+        async function testSigninRequest() {
+            log('Testing Sign-in endpoint...');
+            try {
+                // First test OPTIONS
+                const optionsResponse = await fetch(`${serverUrl}/simpos/v1/sign_in`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin
+                    }
+                });
+
+                log(`Sign-in OPTIONS: ${optionsResponse.status}`);
+
+                // Then test actual request
+                const response = await fetch(`${serverUrl}/simpos/v1/sign_in`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'call',
+                        params: {
+                            login: 'test',
+                            password: 'test',
+                            db: 'simpos'
+                        },
+                        id: 1
+                    })
+                });
+
+                log(`Sign-in Response: ${response.status} ${response.statusText}`);
+                displayResult('signinResult', response.status === 200, `Sign-in request returned ${response.status}`, response.headers);
+                
+            } catch (error) {
+                log(`Sign-in Error: ${error.message}`);
+                displayResult('signinResult', false, `Sign-in request failed: ${error.message}`);
+            }
+        }
+
+        // Auto-detect common server URLs
+        window.onload = function() {
+            log('CORS Debug Tool loaded. Enter your server URL and run tests.');
+        };
+    </script>
+</body>
+</html>
