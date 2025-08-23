@@ -31,49 +31,47 @@ class CORSController(http.Controller):
         return response
 
 
-# Direct WSGI middleware approach - intercept all responses
-def cors_wsgi_middleware(app):
-    """WSGI middleware that adds CORS headers to all responses"""
-    def cors_application(environ, start_response):
-        def cors_start_response(status, headers, exc_info=None):
-            # Convert headers to list if it's not already
-            headers_list = list(headers) if headers else []
-            
-            # Remove existing CORS headers to avoid duplicates
-            headers_list = [(k, v) for k, v in headers_list 
-                           if not k.lower().startswith('access-control')]
-            
-            # Add CORS headers to ALL responses
-            cors_headers = [
-                ('Access-Control-Allow-Origin', '*'),
-                ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'),
-                ('Access-Control-Allow-Credentials', 'true'),
-                ('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS, DELETE, PATCH'),
-            ]
-            headers_list.extend(cors_headers)
-            
-            return start_response(status, headers_list, exc_info)
-        
-        return app(environ, cors_start_response)
-    
-    return cors_application
+# Patch Werkzeug Response class directly
+from werkzeug.wrappers import Response as WerkzeugResponse
 
-# Apply WSGI middleware to Odoo application
-if hasattr(http, 'root') and hasattr(http.root, 'dispatch'):
-    # Wrap the entire Odoo WSGI application
-    original_root = http.root
+if hasattr(WerkzeugResponse, '__init__'):
+    original_werkzeug_init = WerkzeugResponse.__init__
     
-    class CORSRoot:
-        def __init__(self, original):
-            self.original = original
-            
-        def __call__(self, environ, start_response):
-            return cors_wsgi_middleware(self.original)(environ, start_response)
+    def werkzeug_init_with_cors(self, *args, **kwargs):
+        # Call original init
+        original_werkzeug_init(self, *args, **kwargs)
         
-        def __getattr__(self, name):
-            return getattr(self.original, name)
+        # Add CORS headers to ALL Werkzeug responses
+        self.headers['Access-Control-Allow-Origin'] = '*'
+        self.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+        self.headers['Access-Control-Allow-Credentials'] = 'true'
+        self.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+        
+        _logger.debug(f'SIMPOS CORS: Added CORS headers to Werkzeug response')
     
-    http.root = CORSRoot(original_root)
-    _logger.info('SIMPOS CORS: Applied WSGI middleware to Odoo root application')
+    WerkzeugResponse.__init__ = werkzeug_init_with_cors
+    _logger.info('SIMPOS CORS: Patched Werkzeug Response.__init__')
 
-_logger.info('SIMPOS CORS: Direct WSGI middleware CORS implementation loaded')
+# Alternative: Patch http.JsonRequest._json_response more aggressively
+if hasattr(http, 'JsonRequest'):
+    original_json_response = getattr(http.JsonRequest, '_json_response', None)
+    
+    if original_json_response:
+        def patched_json_response(self, result=None, error=None):
+            _logger.debug(f'SIMPOS CORS: Intercepting JSON response')
+            response = original_json_response(self, result, error)
+            
+            # Force add CORS headers
+            if hasattr(response, 'headers'):
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+                response.headers['Access-Control-Allow-Credentials'] = 'true'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+                _logger.debug(f'SIMPOS CORS: Added CORS headers to JSON response: {response.headers}')
+            
+            return response
+        
+        http.JsonRequest._json_response = patched_json_response
+        _logger.info('SIMPOS CORS: Aggressively patched JsonRequest._json_response')
+
+_logger.info('SIMPOS CORS: Multi-level response patching implementation loaded')
