@@ -11,19 +11,44 @@ def make_error(message):
 
 
 class AuthTokenController(http.Controller):
-    @http.route('/simpos/v1/sign_in', type='json', auth='none', cors='*')
+    @http.route('/simpos/v1/sign_in', type='http', auth='none', csrf=False, methods=['POST', 'OPTIONS'])
     def get_token(self, **args):
-        # Debug logging to see what parameters are received
         import logging
+        import json
+        from werkzeug.wrappers import Response
+        
         _logger = logging.getLogger(__name__)
-        _logger.info(f'Received args: {args}')
+        
+        # Handle OPTIONS preflight requests
+        if request.httprequest.method == 'OPTIONS':
+            response = Response('')
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+            _logger.info('SIMPOS AUTH: Handled OPTIONS preflight for sign-in')
+            return response
+        
+        # Parse JSON data from POST request
+        try:
+            data = json.loads(request.httprequest.get_data(as_text=True))
+            params = data.get('params', {})
+            _logger.info(f'Received params: {params}')
+        except Exception as e:
+            _logger.error(f'Failed to parse JSON data: {e}')
+            error_response = json.dumps(make_error('Invalid JSON data'))
+            response = Response(error_response, content_type='application/json')
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            return response
         
         # Get database name from request parameters
-        db_name = args.get('db') or request.session.db
+        db_name = params.get('db') or request.session.db
         _logger.info(f'db_name extracted: {db_name}')
         
         if not db_name:
-            return make_error('Database name is required')
+            error_response = json.dumps(make_error('Database name is required'))
+            response = Response(error_response, content_type='application/json')
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            return response
         
         request.session.db = db_name
         _logger.info(f'Set session.db to: {request.session.db}')
@@ -40,17 +65,17 @@ class AuthTokenController(http.Controller):
                 env = api.Environment(cr, SUPERUSER_ID, {})
                 
                 # Find user by login
-                user = env['res.users'].search([('login', '=', args.get('login'))], limit=1)
+                user = env['res.users'].search([('login', '=', params.get('login'))], limit=1)
                 
                 if user and user.active:
                     # For now, just check if user exists - authentication will be handled by Odoo
                     user_id = user.id
                     request.session.uid = user_id
                     request.session.db = db_name
-                    request.session.login = args.get('login')
+                    request.session.login = params.get('login')
                     _logger.info(f'User found and session set for user {user_id}')
                 else:
-                    _logger.info(f'User not found or inactive: {args.get("login")}')
+                    _logger.info(f'User not found or inactive: {params.get("login")}')
                     user_id = None
                     
         except Exception as e:
@@ -59,7 +84,7 @@ class AuthTokenController(http.Controller):
 
         if user_id:
             request.session.uid = user_id
-            request.session.login = args.get('login')
+            request.session.login = params.get('login')
 
             user = request.env['res.users'].sudo().browse(user_id)
             user._update_last_login()
@@ -81,24 +106,18 @@ class AuthTokenController(http.Controller):
                 },
             }
             
-            # Manually set CORS headers for cross-origin requests
-            if hasattr(request, 'httprequest') and hasattr(request.httprequest, 'environ'):
-                from werkzeug.wrappers import Response
-                import json
-                
-                json_response = json.dumps(response_data)
-                response = Response(
-                    json_response,
-                    content_type='application/json',
-                    headers={
-                        'Access-Control-Allow-Origin': '*',
-                        'Access-Control-Allow-Headers': 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization',
-                        'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
-                    }
-                )
-                _logger.info('SIMPOS AUTH: Added CORS headers to successful sign-in response')
-                return response
-            
-            return response_data
+            # Return JSON response with CORS headers
+            json_response = json.dumps(response_data)
+            response = Response(json_response, content_type='application/json')
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+            _logger.info('SIMPOS AUTH: Added CORS headers to successful sign-in response')
+            return response
 
-        return make_error('Incorrect login name or password')
+        # Return error response with CORS headers
+        error_response = json.dumps(make_error('Incorrect login name or password'))
+        response = Response(error_response, content_type='application/json')
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        _logger.info('SIMPOS AUTH: Added CORS headers to error sign-in response')
+        return response
