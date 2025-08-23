@@ -31,61 +31,19 @@ class CORSController(http.Controller):
         return response
 
 
-# Enhanced CORS patching - multiple strategies for maximum coverage
-
-# 1. Patch JsonRequest._json_response method
-if hasattr(http, 'JsonRequest') and hasattr(http.JsonRequest, '_json_response'):
-    original_json_response = http.JsonRequest._json_response
-    
-    def json_response_with_cors(self, result=None, error=None):
-        """Override JsonRequest._json_response to add CORS headers"""
-        response = original_json_response(self, result, error)
-        
-        # Add CORS headers to the response
-        if hasattr(response, 'headers'):
-            response.headers['Access-Control-Allow-Origin'] = '*'
-            response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
-        
-        return response
-    
-    http.JsonRequest._json_response = json_response_with_cors
-    _logger.info('SIMPOS CORS: Patched JsonRequest._json_response method')
-
-# 2. Patch JsonRequest.dispatch method as backup
-if hasattr(http, 'JsonRequest') and hasattr(http.JsonRequest, 'dispatch'):
-    original_json_dispatch = http.JsonRequest.dispatch
-    
-    def json_dispatch_with_cors(self):
-        """Override JsonRequest.dispatch to add CORS headers"""
-        response = original_json_dispatch(self)
-        
-        # Add CORS headers to the response
-        if hasattr(response, 'headers'):
-            response.headers['Access-Control-Allow-Origin'] = '*'
-            response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
-        
-        return response
-    
-    http.JsonRequest.dispatch = json_dispatch_with_cors
-    _logger.info('SIMPOS CORS: Patched JsonRequest.dispatch method')
-
-# 3. Patch the main HTTP dispatch function to catch all responses
-if hasattr(http, 'dispatch'):
-    original_dispatch = http.dispatch
-    
-    def dispatch_with_cors(request, start_response):
-        """Add CORS headers at the WSGI level"""
+# Direct WSGI middleware approach - intercept all responses
+def cors_wsgi_middleware(app):
+    """WSGI middleware that adds CORS headers to all responses"""
+    def cors_application(environ, start_response):
         def cors_start_response(status, headers, exc_info=None):
+            # Convert headers to list if it's not already
             headers_list = list(headers) if headers else []
             
             # Remove existing CORS headers to avoid duplicates
-            headers_list = [(k, v) for k, v in headers_list if not k.lower().startswith('access-control')]
+            headers_list = [(k, v) for k, v in headers_list 
+                           if not k.lower().startswith('access-control')]
             
-            # Add CORS headers
+            # Add CORS headers to ALL responses
             cors_headers = [
                 ('Access-Control-Allow-Origin', '*'),
                 ('Access-Control-Allow-Headers', 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'),
@@ -96,9 +54,26 @@ if hasattr(http, 'dispatch'):
             
             return start_response(status, headers_list, exc_info)
         
-        return original_dispatch(request, cors_start_response)
+        return app(environ, cors_start_response)
     
-    http.dispatch = dispatch_with_cors
-    _logger.info('SIMPOS CORS: Patched http.dispatch for WSGI-level CORS')
+    return cors_application
 
-_logger.info('SIMPOS CORS: Enhanced multi-layer CORS implementation loaded')
+# Apply WSGI middleware to Odoo application
+if hasattr(http, 'root') and hasattr(http.root, 'dispatch'):
+    # Wrap the entire Odoo WSGI application
+    original_root = http.root
+    
+    class CORSRoot:
+        def __init__(self, original):
+            self.original = original
+            
+        def __call__(self, environ, start_response):
+            return cors_wsgi_middleware(self.original)(environ, start_response)
+        
+        def __getattr__(self, name):
+            return getattr(self.original, name)
+    
+    http.root = CORSRoot(original_root)
+    _logger.info('SIMPOS CORS: Applied WSGI middleware to Odoo root application')
+
+_logger.info('SIMPOS CORS: Direct WSGI middleware CORS implementation loaded')
