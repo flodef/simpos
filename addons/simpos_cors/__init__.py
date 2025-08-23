@@ -79,16 +79,18 @@ if hasattr(http, 'JsonRequest') and hasattr(http.JsonRequest, 'dispatch'):
     original_json_dispatch = http.JsonRequest.dispatch
     
     def patched_json_dispatch(self):
-        _logger.debug(f'SIMPOS CORS: JSON dispatch called for route: {getattr(self, "httprequest", {}).path}')
+        route_path = getattr(self.httprequest, "path", "unknown")
+        _logger.info(f'SIMPOS CORS: JSON dispatch called for route: {route_path}')
         response = original_json_dispatch(self)
         
         # Ensure CORS headers on JSON dispatch responses
         if hasattr(response, 'headers'):
             response.headers['Access-Control-Allow-Origin'] = '*'
             response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
-            _logger.debug(f'SIMPOS CORS: Added CORS headers to JSON dispatch response')
+            _logger.info(f'SIMPOS CORS: Added CORS headers to JSON dispatch response for {route_path}')
+        else:
+            _logger.warning(f'SIMPOS CORS: Response has no headers attribute for {route_path}')
         
         return response
     
