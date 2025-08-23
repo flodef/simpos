@@ -52,7 +52,7 @@ if hasattr(WerkzeugResponse, '__init__'):
     WerkzeugResponse.__init__ = werkzeug_init_with_cors
     _logger.info('SIMPOS CORS: Patched Werkzeug Response.__init__')
 
-# Alternative: Patch http.JsonRequest._json_response more aggressively
+# Patch http.JsonRequest._json_response more aggressively
 if hasattr(http, 'JsonRequest'):
     original_json_response = getattr(http.JsonRequest, '_json_response', None)
     
@@ -73,5 +73,26 @@ if hasattr(http, 'JsonRequest'):
         
         http.JsonRequest._json_response = patched_json_response
         _logger.info('SIMPOS CORS: Aggressively patched JsonRequest._json_response')
+
+# Additional patch for JSON route dispatch
+if hasattr(http, 'JsonRequest') and hasattr(http.JsonRequest, 'dispatch'):
+    original_json_dispatch = http.JsonRequest.dispatch
+    
+    def patched_json_dispatch(self):
+        _logger.debug(f'SIMPOS CORS: JSON dispatch called for route: {getattr(self, "httprequest", {}).path}')
+        response = original_json_dispatch(self)
+        
+        # Ensure CORS headers on JSON dispatch responses
+        if hasattr(response, 'headers'):
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+            _logger.debug(f'SIMPOS CORS: Added CORS headers to JSON dispatch response')
+        
+        return response
+    
+    http.JsonRequest.dispatch = patched_json_dispatch
+    _logger.info('SIMPOS CORS: Patched JsonRequest.dispatch for JSON routes')
 
 _logger.info('SIMPOS CORS: Multi-level response patching implementation loaded')

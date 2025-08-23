@@ -46,6 +46,8 @@
 
     <div class="section">
         <h3>Raw Response Headers</h3>
+        <button onclick="copyLogs()" style="margin-bottom: 10px;">📋 Copy Logs</button>
+        <button onclick="clearLogs()" style="margin-bottom: 10px;">🗑️ Clear Logs</button>
         <textarea id="headersLog" readonly placeholder="Response headers will appear here..."></textarea>
     </div>
 
@@ -55,8 +57,22 @@
         function updateServer() {
             const input = document.getElementById('serverUrl');
             if (input.value.trim()) {
-                serverUrl = input.value.trim();
+                let url = input.value.trim();
+                
+                // Extract base URL from full address
+                // e.g., http://45.63.115.102:8069/odoo/discuss -> http://45.63.115.102:8069
+                try {
+                    const urlObj = new URL(url);
+                    serverUrl = `${urlObj.protocol}//${urlObj.host}`;
+                } catch (e) {
+                    // If URL parsing fails, use as-is
+                    serverUrl = url;
+                }
+                
                 log(`Server URL updated to: ${serverUrl}`);
+                
+                // Update input to show the cleaned URL
+                input.value = serverUrl;
             }
         }
 
@@ -180,6 +196,25 @@
                 log(`Sign-in Error: ${error.message}`);
                 displayResult('signinResult', false, `Sign-in request failed: ${error.message}`);
             }
+        }
+
+        function copyLogs() {
+            const textarea = document.getElementById('headersLog');
+            textarea.select();
+            textarea.setSelectionRange(0, 99999); // For mobile devices
+            navigator.clipboard.writeText(textarea.value).then(() => {
+                log('📋 Logs copied to clipboard!');
+            }).catch(() => {
+                // Fallback for older browsers
+                document.execCommand('copy');
+                log('📋 Logs copied to clipboard!');
+            });
+        }
+
+        function clearLogs() {
+            const textarea = document.getElementById('headersLog');
+            textarea.value = '';
+            log('🗑️ Logs cleared');
         }
 
         // Auto-detect common server URLs
