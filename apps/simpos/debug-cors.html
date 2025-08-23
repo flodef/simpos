@@ -89,7 +89,9 @@
 
     <div class="section">
       <h3>Test 3: Sign-in Endpoint</h3>
-      <button onclick="testSigninRequest()">Test Sign-in</button>
+      <button onclick="testSigninRequest()">Test Sign-in Request</button>
+      <button onclick="testCorsRequest()">Test CORS Request</button>
+      <button onclick="testPosMetadata()">Test POS Metadata</button>
       <div id="signinResult"></div>
     </div>
 
@@ -285,6 +287,55 @@
             'signinResult',
             false,
             `Sign-in request failed: ${error.message}`,
+          );
+        }
+      }
+
+      async function testPosMetadata() {
+        log('Testing POS Metadata endpoint...');
+        try {
+          // First test OPTIONS
+          const optionsResponse = await fetch(`${serverUrl}/pos_metadata`, {
+            method: 'OPTIONS',
+            headers: {
+              Origin: window.location.origin,
+            },
+          });
+
+          log(`Metadata OPTIONS: ${optionsResponse.status}`);
+
+          // Then test actual request
+          const response = await fetch(`${serverUrl}/pos_metadata`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Origin: window.location.origin,
+            },
+            body: JSON.stringify({
+              params: {
+                config_id: 1,
+              },
+            }),
+          });
+
+          log(`Metadata Response: ${response.status} ${response.statusText}`);
+          displayResult(
+            'signinResult',
+            response.status === 200 || response.status === 401,
+            `POS Metadata request returned ${response.status}`,
+            response.headers,
+          );
+
+          if (response.ok) {
+            const responseText = await response.text();
+            log(`Metadata body preview: ${responseText.substring(0, 200)}...`);
+          }
+        } catch (error) {
+          log(`Metadata Error: ${error.message}`);
+          displayResult(
+            'signinResult',
+            false,
+            `POS Metadata request failed: ${error.message}`,
           );
         }
       }

@@ -17,22 +17,22 @@ class CORSController(http.Controller):
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
         return response
     
-    @http.route('/pos_metadata', type='http', auth='none', methods=['OPTIONS'], csrf=False)
-    def pos_metadata_options(self, **kwargs):
-        """Handle OPTIONS preflight for /pos_metadata"""
-        response = Response('')
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
-        response.headers['Access-Control-Max-Age'] = '86400'
-        _logger.info('SIMPOS CORS: Handled OPTIONS preflight for /pos_metadata')
-        return response
-    
-    @http.route('/pos_metadata', type='http', auth='user', csrf=False, methods=['POST'])
+    @http.route('/pos_metadata', type='http', auth='none', csrf=False, methods=['POST', 'OPTIONS'])
     def get_pos_metadata(self, **args):
         """Provide POS metadata endpoint with CORS support"""
         import json
         from werkzeug.wrappers import Response
+        from odoo.http import request
+        
+        # Handle OPTIONS preflight requests first
+        if request.httprequest.method == 'OPTIONS':
+            response = Response('')
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+            response.headers['Access-Control-Max-Age'] = '86400'
+            _logger.info('SIMPOS CORS: Handled OPTIONS preflight for /pos_metadata')
+            return response
         
         # Parse JSON data from POST request
         try:
@@ -48,6 +48,14 @@ class CORSController(http.Controller):
             return response
         
         try:
+            # Get user from current session (should be authenticated from sign-in)
+            if not request.session.uid:
+                _logger.error('No authenticated user session found')
+                error_response = json.dumps({'error': 'Not authenticated'})
+                response = Response(error_response, content_type='application/json', status=401)
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                return response
+            
             # Get current user session info
             user = request.env.user
             company = user.company_id
