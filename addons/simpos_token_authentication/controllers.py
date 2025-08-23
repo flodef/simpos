@@ -81,6 +81,24 @@ class AuthTokenController(http.Controller):
                 },
             }
             
+            # Manually set CORS headers for cross-origin requests
+            if hasattr(request, 'httprequest') and hasattr(request.httprequest, 'environ'):
+                from werkzeug.wrappers import Response
+                import json
+                
+                json_response = json.dumps(response_data)
+                response = Response(
+                    json_response,
+                    content_type='application/json',
+                    headers={
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Headers': 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization',
+                        'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+                    }
+                )
+                _logger.info('SIMPOS AUTH: Added CORS headers to successful sign-in response')
+                return response
+            
             return response_data
 
         return make_error('Incorrect login name or password')
