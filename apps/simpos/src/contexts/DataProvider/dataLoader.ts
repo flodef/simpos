@@ -343,7 +343,7 @@ export const syncData = async (userMeta?: AuthUserMeta, worker?: Worker) => {
 
   const loadModelsMap = getLoadModelsMap();
   const requiredKeys = getModelNames();
-  await Promise.all(
+  await Promise.allSettled(
     requiredKeys
       .map((key) => {
         if (!loadModelsMap[key]) {
@@ -351,6 +351,10 @@ export const syncData = async (userMeta?: AuthUserMeta, worker?: Worker) => {
         }
         return loadModelsMap[key].load({
           userMeta,
+        }).catch((error) => {
+          console.error(`Failed to load model ${key}:`, error);
+          // Return empty array for failed models to prevent app crash
+          return [];
         });
       })
       .filter(Boolean),

@@ -14,10 +14,77 @@ class CORSController(http.Controller):
         response = Response('')
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+        return response
+    
+    @http.route('/pos_metadata', type='http', auth='none', methods=['OPTIONS'], csrf=False)
+    def pos_metadata_options(self, **kwargs):
+        """Handle OPTIONS preflight for /pos_metadata"""
+        response = Response('')
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
         response.headers['Access-Control-Max-Age'] = '86400'
+        _logger.info('SIMPOS CORS: Handled OPTIONS preflight for /pos_metadata')
         return response
+    
+    @http.route('/pos_metadata', type='http', auth='user', csrf=False, methods=['POST'])
+    def get_pos_metadata(self, **args):
+        """Provide POS metadata endpoint with CORS support"""
+        import json
+        from werkzeug.wrappers import Response
+        
+        # Parse JSON data from POST request
+        try:
+            data = json.loads(request.httprequest.get_data(as_text=True))
+            params = data.get('params', {})
+            config_id = params.get('config_id')
+            _logger.info(f'POS Metadata requested for config_id: {config_id}')
+        except Exception as e:
+            _logger.error(f'Failed to parse JSON data: {e}')
+            error_response = json.dumps({'error': 'Invalid JSON data'})
+            response = Response(error_response, content_type='application/json')
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            return response
+        
+        try:
+            # Get current user session info
+            user = request.env.user
+            company = user.company_id
+            
+            # Build response data similar to standard Odoo POS metadata
+            response_data = {
+                'loginNumber': 1,
+                'sessionInfo': {
+                    'userContext': {
+                        'uid': user.id,
+                        'user_id': user.id,
+                        'name': user.name,
+                        'company_id': company.id,
+                        'company_name': company.name,
+                        'lang': user.lang or 'en_US',
+                        'tz': user.tz or 'UTC',
+                        'is_admin': user.has_group('base.group_system'),
+                        'pos_config_id': config_id if config_id else None,
+                    }
+                }
+            }
+            
+            # Return JSON response with CORS headers
+            json_response = json.dumps(response_data)
+            response = Response(json_response, content_type='application/json')
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+            _logger.info('SIMPOS CORS: Returned POS metadata with CORS headers')
+            return response
+            
+        except Exception as e:
+            _logger.error(f'Error getting POS metadata: {e}', exc_info=True)
+            error_response = json.dumps({'error': 'Failed to get POS metadata'})
+            response = Response(error_response, content_type='application/json')
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            return response
     
     @http.route('/web/dataset/call_kw/<path:path>', type='http', auth='none', methods=['OPTIONS'], csrf=False)
     def web_dataset_options(self, path=None, **kwargs):

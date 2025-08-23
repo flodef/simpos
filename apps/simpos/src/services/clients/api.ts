@@ -23,7 +23,22 @@ simApi.interceptors.response.use(
     if (error.response?.data?.includes('odoo.http.SessionExpiredException')) {
       throw new Error('Unauthorized error');
     }
-    throw new Error('Uncaught error');
+    // Add more specific error handling for debugging
+    const status = error.response?.status;
+    const url = error.config?.url;
+    const data = error.response?.data;
+    
+    console.error('API Error Details:', {
+      status,
+      url, 
+      data: typeof data === 'string' ? data.substring(0, 200) : data
+    });
+    
+    if (status === 404) {
+      throw new Error(`404 Not Found: ${url || 'Unknown endpoint'}`);
+    }
+    
+    throw new Error(`${status || 'Unknown'} error: ${error.message}`);
   },
 );
 
