@@ -93,6 +93,7 @@
         <button onclick="testCorsRequest()">Test CORS Request</button>
         <button onclick="testPosMetadata()">Test POS Metadata</button>
         <button onclick="testFullAuthFlow()">Test Full Auth Flow</button>
+        <button onclick="testSigninWithCredentials()">Test Sign-in With Credentials</button>
       <div id="signinResult"></div>
     </div>
 
@@ -407,6 +408,62 @@
             'signinResult',
             false,
             `Full auth flow failed: ${error.message}`,
+          );
+        }
+      }
+
+      async function testSigninWithCredentials() {
+        log('Testing Sign-in with credentials: include...');
+        try {
+          // Test OPTIONS first
+          const optionsResponse = await fetch(`${serverUrl}/simpos/v1/sign_in`, {
+            method: 'OPTIONS',
+            headers: {
+              Origin: window.location.origin,
+            },
+            credentials: 'include',
+          });
+
+          log(`Sign-in OPTIONS with credentials: ${optionsResponse.status}`);
+
+          // Then test actual request with credentials
+          const response = await fetch(`${serverUrl}/simpos/v1/sign_in`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Origin: window.location.origin,
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'call',
+              params: {
+                login: 'test@tradiz.fr',
+                password: 'test',
+                db: 'Annette',
+              },
+              id: 1,
+            }),
+          });
+
+          log(`Sign-in POST with credentials: ${response.status} ${response.statusText}`);
+          displayResult(
+            'signinResult',
+            response.status === 200,
+            `Sign-in with credentials: ${response.status}`,
+            response.headers,
+          );
+
+          if (response.ok) {
+            const responseText = await response.text();
+            log(`Sign-in response preview: ${responseText.substring(0, 200)}...`);
+          }
+        } catch (error) {
+          log(`❌ Sign-in with credentials failed: ${error.message}`);
+          displayResult(
+            'signinResult',
+            false,
+            `Sign-in with credentials failed: ${error.message}`,
           );
         }
       }
