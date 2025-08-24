@@ -89,6 +89,18 @@
 
     <div class="section">
       <h3>Test 3: Authentication Flow</h3>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Login/Email:</label>
+        <input type="email" id="loginInput" placeholder="test@tradiz.fr" style="padding: 8px; width: 250px; border: 1px solid #ddd; border-radius: 4px;" />
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Password:</label>
+        <input type="password" id="passwordInput" placeholder="Enter password" style="padding: 8px; width: 250px; border: 1px solid #ddd; border-radius: 4px;" />
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Database:</label>
+        <input type="text" id="databaseInput" value="Annette" placeholder="Annette" style="padding: 8px; width: 250px; border: 1px solid #ddd; border-radius: 4px;" />
+      </div>
       <button onclick="testFullAuthFlow()">Test Full Auth Flow</button>
       <button onclick="testSigninWithCredentials()">
         Test Sign-in With Credentials
@@ -307,9 +319,9 @@
             credentials: 'include', // Important: Include cookies for session
             body: JSON.stringify({
               params: {
-                login: 'test@tradiz.fr',
-                password: 'test',
-                db: 'Annette',
+                login: document.getElementById('loginInput').value || 'test@tradiz.fr',
+                password: document.getElementById('passwordInput').value || 'test',
+                db: document.getElementById('databaseInput').value || 'Annette',
               },
             }),
           });
@@ -387,41 +399,32 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Origin: window.location.origin,
+              'Origin': 'http://localhost:8069'
             },
             credentials: 'include',
             body: JSON.stringify({
               params: {
-                login: 'test@tradiz.fr',
-                password: 'test',
-                db: 'Annette',
-              },
-            }),
+                login: login,
+                password: password,
+                db: database
+              }
+            })
           });
-
-          log(
-            `Sign-in POST with credentials: ${response.status} ${response.statusText}`,
-          );
-          displayResult(
-            'authResult',
-            response.status === 200,
-            `Sign-in with credentials: ${response.status}`,
-            response.headers,
-          );
-
-          if (response.ok) {
-            const responseText = await response.text();
-            log(
-              `Sign-in response preview: ${responseText.substring(0, 200)}...`,
-            );
+          
+          const data = await response.json();
+          console.log('Sign-in response:', data);
+          document.getElementById('signinResult').textContent = JSON.stringify(data, null, 2);
+          
+          // Store session info for next request
+          if (data.success) {
+            console.log('Authentication successful - session should be established');
           }
+          
+          return data;
         } catch (error) {
-          log(`❌ Sign-in with credentials failed: ${error.message}`);
-          displayResult(
-            'authResult',
-            false,
-            `Sign-in with credentials failed: ${error.message}`,
-          );
+          console.error('Sign-in error:', error);
+          document.getElementById('signinResult').textContent = 'Error: ' + error.message;
+          return null;
         }
       }
 
