@@ -88,23 +88,20 @@
     </div>
 
     <div class="section">
-      <h3>Test 3: Sign-in Endpoint</h3>
-        <button onclick="testSigninRequest()">Test Sign-in Request</button>
-        <button onclick="testCorsRequest()">Test CORS Request</button>
-        <button onclick="testPosMetadata()">Test POS Metadata</button>
-        <button onclick="testFullAuthFlow()">Test Full Auth Flow</button>
-        <button onclick="testSigninWithCredentials()">Test Sign-in With Credentials</button>
-      <div id="signinResult"></div>
-    </div>
-
-    <div class="section">
-      <h3>Raw Response Headers</h3>
+      <h3>Test 3: Authentication Flow</h3>
+      <button onclick="testFullAuthFlow()">Test Full Auth Flow</button>
+      <button onclick="testSigninWithCredentials()">Test Sign-in With Credentials</button>
+      <div id="authResult" class="result"></div>
       <button onclick="copyLogs()" style="margin-bottom: 10px">
         📋 Copy Logs
       </button>
       <button onclick="clearLogs()" style="margin-bottom: 10px">
         🗑️ Clear Logs
       </button>
+    </div>
+
+    <div class="section">
+      <h3>Raw Response Headers</h3>
       <textarea
         id="headersLog"
         readonly
@@ -241,57 +238,6 @@
         }
       }
 
-      async function testSigninRequest() {
-        log('Testing Sign-in endpoint...');
-        try {
-          // First test OPTIONS
-          const optionsResponse = await fetch(
-            `${serverUrl}/simpos/v1/sign_in`,
-            {
-              method: 'OPTIONS',
-              headers: {
-                Origin: window.location.origin,
-              },
-            },
-          );
-
-          log(`Sign-in OPTIONS: ${optionsResponse.status}`);
-
-          // Then test actual request
-          const response = await fetch(`${serverUrl}/simpos/v1/sign_in`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Origin: window.location.origin,
-            },
-            body: JSON.stringify({
-              jsonrpc: '2.0',
-              method: 'call',
-              params: {
-                login: 'test@tradiz.fr',
-                password: 'test',
-                db: 'Annette',
-              },
-              id: 1,
-            }),
-          });
-
-          log(`Sign-in Response: ${response.status} ${response.statusText}`);
-          displayResult(
-            'signinResult',
-            response.status === 200,
-            `Sign-in request returned ${response.status}`,
-            response.headers,
-          );
-        } catch (error) {
-          log(`Sign-in Error: ${error.message}`);
-          displayResult(
-            'signinResult',
-            false,
-            `Sign-in request failed: ${error.message}`,
-          );
-        }
-      }
 
       async function testPosMetadata() {
         log('Testing POS Metadata endpoint...');
