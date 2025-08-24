@@ -18,12 +18,18 @@ class CORSController(http.Controller):
         # Handle OPTIONS preflight requests first
         if request.httprequest.method == 'OPTIONS':
             response = Response('')
-            response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'  # Specific origin for credentials
+            # Allow multiple origins for development
+            origin = request.httprequest.headers.get('Origin', '')
+            allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
+            if origin in allowed_origins or origin.startswith('file://'):
+                response.headers['Access-Control-Allow-Origin'] = origin
+            else:
+                response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
             response.headers['Access-Control-Allow-Credentials'] = 'true'
             response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
             response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
             response.headers['Access-Control-Max-Age'] = '86400'
-            _logger.info('SIMPOS CORS: Handled OPTIONS preflight for /pos_metadata')
+            _logger.info(f'SIMPOS CORS: Handled OPTIONS preflight for /pos_metadata from origin: {origin}')
             return response
         
         # Parse JSON data from POST request
@@ -36,7 +42,12 @@ class CORSController(http.Controller):
             _logger.error(f'Failed to parse JSON data: {e}')
             error_response = json.dumps({'error': 'Invalid JSON data'})
             response = Response(error_response, content_type='application/json')
-            response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+            origin = request.httprequest.headers.get('Origin', '')
+            allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
+            if origin in allowed_origins or origin.startswith('file://'):
+                response.headers['Access-Control-Allow-Origin'] = origin
+            else:
+                response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
             response.headers['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -46,7 +57,12 @@ class CORSController(http.Controller):
                 _logger.error('No authenticated user session found')
                 error_response = json.dumps({'error': 'Not authenticated'})
                 response = Response(error_response, content_type='application/json', status=401)
-                response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+                origin = request.httprequest.headers.get('Origin', '')
+                allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
+                if origin in allowed_origins or origin.startswith('file://'):
+                    response.headers['Access-Control-Allow-Origin'] = origin
+                else:
+                    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
                 response.headers['Access-Control-Allow-Credentials'] = 'true'
                 return response
             
@@ -75,18 +91,29 @@ class CORSController(http.Controller):
             # Return JSON response with CORS headers
             json_response = json.dumps(response_data)
             response = Response(json_response, content_type='application/json')
-            response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'  # Specific origin for credentials
+            origin = request.httprequest.headers.get('Origin', '')
+            allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
+            if origin in allowed_origins or origin.startswith('file://'):
+                response.headers['Access-Control-Allow-Origin'] = origin
+            else:
+                response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
             response.headers['Access-Control-Allow-Credentials'] = 'true'
             response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
-            _logger.info('SIMPOS CORS: Returned POS metadata with CORS headers')
+            _logger.info(f'SIMPOS CORS: Returned POS metadata with CORS headers for origin: {origin}')
             return response
             
         except Exception as e:
             _logger.error(f'Error getting POS metadata: {e}', exc_info=True)
             error_response = json.dumps({'error': 'Failed to get POS metadata'})
             response = Response(error_response, content_type='application/json')
-            response.headers['Access-Control-Allow-Origin'] = '*'
+            origin = request.httprequest.headers.get('Origin', '')
+            allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
+            if origin in allowed_origins or origin.startswith('file://'):
+                response.headers['Access-Control-Allow-Origin'] = origin
+            else:
+                response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
             return response
     
     @http.route('/web/dataset/call_kw/<path:path>', type='http', auth='none', methods=['OPTIONS'], csrf=False)
