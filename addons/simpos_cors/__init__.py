@@ -53,6 +53,7 @@ class CORSController(http.Controller):
         
         try:
             # Get user from current session (should be authenticated from sign-in)
+            _logger.info(f'Checking session: uid={request.session.uid}, db={request.session.db}, login={request.session.login}')
             if not request.session.uid:
                 _logger.error('No authenticated user session found')
                 error_response = json.dumps({'error': 'Not authenticated'})
