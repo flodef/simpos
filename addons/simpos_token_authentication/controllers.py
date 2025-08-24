@@ -92,8 +92,8 @@ class AuthTokenController(http.Controller):
                 if user and user.active:
                     # Verify password using Odoo's authentication system
                     try:
-                        # Use the user's _crypt_context to verify password
-                        password_valid = user._crypt_context.verify(params.get('password'), user.password)
+                        # Use Odoo's built-in password verification
+                        password_valid = user._crypt_context().verify(params.get('password'), user.password)
                         _logger.info(f'MANUAL AUTH: Password check result: {password_valid}')
                     except Exception as password_error:
                         _logger.error(f'MANUAL AUTH: Password verification error: {password_error}')
