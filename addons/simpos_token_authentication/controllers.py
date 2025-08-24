@@ -92,9 +92,7 @@ class AuthTokenController(http.Controller):
                     request.session.uid = user_id
                     request.session.db = db_name
                     request.session.login = params.get('login')
-                    # Ensure session is committed
-                    request.session.save()
-                    _logger.info(f'User found and session set for user {user_id}, session saved')
+                    _logger.info(f'User found and session set for user {user_id}')
                 else:
                     _logger.info(f'User not found or inactive: {params.get("login")}')
                     user_id = None
@@ -104,7 +102,7 @@ class AuthTokenController(http.Controller):
             user_id = None
 
         if user_id:
-            request.session.login = params.get('login')
+            # Session already set above, just proceed with token generation
 
             user = request.env['res.users'].sudo().browse(user_id)
             user._update_last_login()
