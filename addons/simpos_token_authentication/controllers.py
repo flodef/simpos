@@ -77,6 +77,8 @@ class AuthTokenController(http.Controller):
         from odoo import SUPERUSER_ID
         
         try:
+            _logger.info(f'MANUAL AUTH: Starting authentication for login: {params.get("login")}')
+            
             # Create a registry for the specific database
             reg = registry.Registry(db_name)
             
@@ -85,29 +87,34 @@ class AuthTokenController(http.Controller):
                 
                 # Find user by login
                 user = env['res.users'].search([('login', '=', params.get('login'))], limit=1)
+                _logger.info(f'MANUAL AUTH: User search result: {user}, active: {user.active if user else "N/A"}')
                 
                 if user and user.active:
                     # Verify password manually
-                    if user.check_password(params.get('password')):
+                    password_valid = user.check_password(params.get('password'))
+                    _logger.info(f'MANUAL AUTH: Password check result: {password_valid}')
+                    
+                    if password_valid:
                         user_id = user.id
+                        _logger.info(f'MANUAL AUTH: Before session update - current session: uid={request.session.get("uid")}, db={request.session.get("db")}')
                         
                         # Manually set session data - bypass session.authenticate()
-                        request.session.update({
-                            'uid': user_id,
-                            'login': user.login,
-                            'db': db_name,
-                            'session_token': None,  # Not using token-based auth
-                        })
-                        _logger.info(f'Manual session set for user {user_id}, login: {user.login}')
+                        request.session['uid'] = user_id
+                        request.session['login'] = user.login
+                        request.session['db'] = db_name
+                        request.session['session_token'] = None
                         
-                        # Commit the session changes
-                        request.session.rotate = True  # Force session save
-                        _logger.info(f'Session data: uid={request.session.get("uid")}, db={request.session.get("db")}')
+                        _logger.info(f'MANUAL AUTH: After session update - session: uid={request.session.get("uid")}, login={request.session.get("login")}, db={request.session.get("db")}')
+                        
+                        # Force session save
+                        request.session.rotate = True
+                        request.session.save()
+                        _logger.info(f'MANUAL AUTH: Session saved and rotated for user {user_id}')
                     else:
-                        _logger.info(f'Invalid password for user: {params.get("login")}')
+                        _logger.info(f'MANUAL AUTH: Invalid password for user: {params.get("login")}')
                         user_id = None
                 else:
-                    _logger.info(f'User not found or inactive: {params.get("login")}')
+                    _logger.info(f'MANUAL AUTH: User not found or inactive: {params.get("login")}')
                     user_id = None
                     
         except Exception as e:

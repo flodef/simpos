@@ -90,7 +90,9 @@
     <div class="section">
       <h3>Test 3: Authentication Flow</h3>
       <button onclick="testFullAuthFlow()">Test Full Auth Flow</button>
-      <button onclick="testSigninWithCredentials()">Test Sign-in With Credentials</button>
+      <button onclick="testSigninWithCredentials()">
+        Test Sign-in With Credentials
+      </button>
       <div id="authResult" class="result"></div>
       <button onclick="copyLogs()" style="margin-bottom: 10px">
         📋 Copy Logs
@@ -242,7 +244,6 @@
         }
       }
 
-
       async function testPosMetadata() {
         log('Testing POS Metadata endpoint...');
         try {
@@ -317,8 +318,12 @@
           });
 
           log(`Sign-in: ${signInResponse.status} ${signInResponse.statusText}`);
-          
-          if (!signInResponse.ok) {
+          if (signInResponse.ok) {
+            const responseText = await signInResponse.text();
+            log(
+              `Sign-in response preview: ${responseText.substring(0, 200)}...`,
+            );
+          } else {
             throw new Error(`Sign-in failed: ${signInResponse.status}`);
           }
 
@@ -338,8 +343,10 @@
             }),
           });
 
-          log(`Metadata: ${metadataResponse.status} ${metadataResponse.statusText}`);
-          
+          log(
+            `Metadata: ${metadataResponse.status} ${metadataResponse.statusText}`,
+          );
+
           displayResult(
             'signinResult',
             metadataResponse.ok,
@@ -351,7 +358,6 @@
             const responseText = await metadataResponse.text();
             log(`✅ Success! Metadata: ${responseText.substring(0, 200)}...`);
           }
-
         } catch (error) {
           log(`❌ Full auth flow failed: ${error.message}`);
           displayResult(
@@ -366,13 +372,16 @@
         log('Testing Sign-in with credentials: include...');
         try {
           // Test OPTIONS first
-          const optionsResponse = await fetch(`${serverUrl}/simpos/v1/sign_in`, {
-            method: 'OPTIONS',
-            headers: {
-              Origin: window.location.origin,
+          const optionsResponse = await fetch(
+            `${serverUrl}/simpos/v1/sign_in`,
+            {
+              method: 'OPTIONS',
+              headers: {
+                Origin: window.location.origin,
+              },
+              credentials: 'include',
             },
-            credentials: 'include',
-          });
+          );
 
           log(`Sign-in OPTIONS with credentials: ${optionsResponse.status}`);
 
@@ -396,7 +405,9 @@
             }),
           });
 
-          log(`Sign-in POST with credentials: ${response.status} ${response.statusText}`);
+          log(
+            `Sign-in POST with credentials: ${response.status} ${response.statusText}`,
+          );
           displayResult(
             'authResult',
             response.status === 200,
@@ -406,7 +417,9 @@
 
           if (response.ok) {
             const responseText = await response.text();
-            log(`Sign-in response preview: ${responseText.substring(0, 200)}...`);
+            log(
+              `Sign-in response preview: ${responseText.substring(0, 200)}...`,
+            );
           }
         } catch (error) {
           log(`❌ Sign-in with credentials failed: ${error.message}`);
