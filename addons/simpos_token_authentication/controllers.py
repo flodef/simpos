@@ -90,7 +90,7 @@ class AuthTokenController(http.Controller):
                     # Properly authenticate user using Odoo's auth mechanism
                     user_id = user.id
                     # Use Odoo's session authentication (db, login, password)
-                    request.session.authenticate(params.get('login'), params.get('password'))
+                    request.session.authenticate(db_name, params.get('login'), params.get('password'))
                     _logger.info(f'User authenticated with session for user {user_id}')
                 else:
                     _logger.info(f'User not found or inactive: {params.get("login")}')
