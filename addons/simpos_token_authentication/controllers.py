@@ -73,7 +73,8 @@ class AuthTokenController(http.Controller):
         _logger.info(f'Set session.db to: {request.session.db}')
         
         # Use Odoo's native password verification
-        from odoo import registry, SUPERUSER_ID
+        from odoo.modules import registry
+        from odoo import SUPERUSER_ID
         
         try:
             # Create a registry for the specific database
