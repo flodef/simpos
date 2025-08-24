@@ -8,16 +8,6 @@ _logger = logging.getLogger(__name__)
 class CORSController(http.Controller):
     """CORS controller for API endpoints"""
     
-    @http.route('/simpos/v1/sign_in', type='http', auth='none', methods=['OPTIONS'], csrf=False)
-    def simpos_sign_in_options(self, **kwargs):
-        """Handle OPTIONS preflight for /simpos/v1/sign_in"""
-        response = Response('')
-        response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'  # Specific origin for credentials
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
-        return response
-    
     @http.route('/pos_metadata', type='http', auth='none', csrf=False, methods=['POST', 'OPTIONS'])
     def get_pos_metadata(self, **args):
         """Provide POS metadata endpoint with CORS support"""
