@@ -76,9 +76,8 @@ class AuthTokenController(http.Controller):
         from odoo import registry, SUPERUSER_ID
         
         try:
-            # Get database registry directly (fix deprecation warning)
-            from odoo.modules.registry import Registry
-            reg = Registry(db_name)
+            # Create a registry for the specific database
+            reg = registry.Registry(db_name)
             
             with reg.cursor() as cr:
                 env = api.Environment(cr, SUPERUSER_ID, {})
@@ -87,11 +86,25 @@ class AuthTokenController(http.Controller):
                 user = env['res.users'].search([('login', '=', params.get('login'))], limit=1)
                 
                 if user and user.active:
-                    # Properly authenticate user using Odoo's auth mechanism
-                    user_id = user.id
-                    # Use Odoo's session authentication (db_name, login, password)
-                    request.session.authenticate(db_name, params.get('login'), params.get('password'))
-                    _logger.info(f'User authenticated with session for user {user_id}')
+                    # Verify password manually
+                    if user.check_password(params.get('password')):
+                        user_id = user.id
+                        
+                        # Manually set session data - bypass session.authenticate()
+                        request.session.update({
+                            'uid': user_id,
+                            'login': user.login,
+                            'db': db_name,
+                            'session_token': None,  # Not using token-based auth
+                        })
+                        _logger.info(f'Manual session set for user {user_id}, login: {user.login}')
+                        
+                        # Commit the session changes
+                        request.session.rotate = True  # Force session save
+                        _logger.info(f'Session data: uid={request.session.get("uid")}, db={request.session.get("db")}')
+                    else:
+                        _logger.info(f'Invalid password for user: {params.get("login")}')
+                        user_id = None
                 else:
                     _logger.info(f'User not found or inactive: {params.get("login")}')
                     user_id = None

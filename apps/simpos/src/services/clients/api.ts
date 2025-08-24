@@ -20,7 +20,8 @@ simApi.interceptors.response.use(
     });
   },
   function (error) {
-    if (error.response?.data?.includes('odoo.http.SessionExpiredException')) {
+    const responseData = error.response?.data;
+    if (typeof responseData === 'string' && responseData.includes('odoo.http.SessionExpiredException')) {
       throw new Error('Unauthorized error');
     }
     // Add more specific error handling for debugging
