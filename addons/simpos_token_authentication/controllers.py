@@ -87,12 +87,11 @@ class AuthTokenController(http.Controller):
                 user = env['res.users'].search([('login', '=', params.get('login'))], limit=1)
                 
                 if user and user.active:
-                    # For now, just check if user exists - authentication will be handled by Odoo
+                    # Properly authenticate user using Odoo's auth mechanism
                     user_id = user.id
-                    request.session.uid = user_id
-                    request.session.db = db_name
-                    request.session.login = params.get('login')
-                    _logger.info(f'User found and session set for user {user_id}')
+                    # Use Odoo's session authentication
+                    request.session.authenticate(db_name, params.get('login'), params.get('password'))
+                    _logger.info(f'User authenticated with session for user {user_id}')
                 else:
                     _logger.info(f'User not found or inactive: {params.get("login")}')
                     user_id = None
