@@ -81,7 +81,7 @@ class AuthTokenController(http.Controller):
             
             # Use Odoo's native authentication system
             request.session.db = db_name
-user_id = request.session.authenticate(params.get('login'), params.get('password'))
+            user_id = request.session.authenticate(params.get('login'), params.get('password'))
             _logger.info(f'NATIVE AUTH: Authentication result - user_id: {user_id}')
             
             if user_id:
