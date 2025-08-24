@@ -142,6 +142,10 @@
 
       function displayResult(elementId, success, message, headers = null) {
         const element = document.getElementById(elementId);
+        if (!element) {
+          console.error(`Element with ID '${elementId}' not found`);
+          return;
+        }
         element.className = 'section ' + (success ? 'success' : 'error');
         element.innerHTML = `<strong>${success ? '✅ SUCCESS' : '❌ ERROR'}:</strong> ${message}`;
 
