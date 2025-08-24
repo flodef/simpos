@@ -89,9 +89,10 @@
 
     <div class="section">
       <h3>Test 3: Sign-in Endpoint</h3>
-      <button onclick="testSigninRequest()">Test Sign-in Request</button>
-      <button onclick="testCorsRequest()">Test CORS Request</button>
-      <button onclick="testPosMetadata()">Test POS Metadata</button>
+        <button onclick="testSigninRequest()">Test Sign-in Request</button>
+        <button onclick="testCorsRequest()">Test CORS Request</button>
+        <button onclick="testPosMetadata()">Test POS Metadata</button>
+        <button onclick="testFullAuthFlow()">Test Full Auth Flow</button>
       <div id="signinResult"></div>
     </div>
 
@@ -336,6 +337,76 @@
             'signinResult',
             false,
             `POS Metadata request failed: ${error.message}`,
+          );
+        }
+      }
+
+      async function testFullAuthFlow() {
+        log('Testing full authentication flow: Sign-in → POS Metadata...');
+        try {
+          // Step 1: Sign in first
+          log('Step 1: Authenticating...');
+          const signInResponse = await fetch(`${serverUrl}/simpos/v1/sign_in`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Origin: window.location.origin,
+            },
+            credentials: 'include', // Important: Include cookies for session
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'call',
+              params: {
+                login: 'test@tradiz.fr',
+                password: 'test',
+                db: 'Annette',
+              },
+              id: 1,
+            }),
+          });
+
+          log(`Sign-in: ${signInResponse.status} ${signInResponse.statusText}`);
+          
+          if (!signInResponse.ok) {
+            throw new Error(`Sign-in failed: ${signInResponse.status}`);
+          }
+
+          // Step 2: Use the authenticated session for metadata
+          log('Step 2: Fetching POS metadata with authenticated session...');
+          const metadataResponse = await fetch(`${serverUrl}/pos_metadata`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Origin: window.location.origin,
+            },
+            credentials: 'include', // Use the session from sign-in
+            body: JSON.stringify({
+              params: {
+                config_id: 1,
+              },
+            }),
+          });
+
+          log(`Metadata: ${metadataResponse.status} ${metadataResponse.statusText}`);
+          
+          displayResult(
+            'signinResult',
+            metadataResponse.ok,
+            `Full auth flow: Sign-in ${signInResponse.status} → Metadata ${metadataResponse.status}`,
+            metadataResponse.headers,
+          );
+
+          if (metadataResponse.ok) {
+            const responseText = await metadataResponse.text();
+            log(`✅ Success! Metadata: ${responseText.substring(0, 200)}...`);
+          }
+
+        } catch (error) {
+          log(`❌ Full auth flow failed: ${error.message}`);
+          displayResult(
+            'signinResult',
+            false,
+            `Full auth flow failed: ${error.message}`,
           );
         }
       }

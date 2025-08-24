@@ -12,7 +12,8 @@ class CORSController(http.Controller):
     def simpos_sign_in_options(self, **kwargs):
         """Handle OPTIONS preflight for /simpos/v1/sign_in"""
         response = Response('')
-        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'  # Specific origin for credentials
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
         return response
@@ -27,7 +28,8 @@ class CORSController(http.Controller):
         # Handle OPTIONS preflight requests first
         if request.httprequest.method == 'OPTIONS':
             response = Response('')
-            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'  # Specific origin for credentials
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
             response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
             response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
             response.headers['Access-Control-Max-Age'] = '86400'
@@ -44,7 +46,8 @@ class CORSController(http.Controller):
             _logger.error(f'Failed to parse JSON data: {e}')
             error_response = json.dumps({'error': 'Invalid JSON data'})
             response = Response(error_response, content_type='application/json')
-            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
             return response
         
         try:
@@ -53,7 +56,8 @@ class CORSController(http.Controller):
                 _logger.error('No authenticated user session found')
                 error_response = json.dumps({'error': 'Not authenticated'})
                 response = Response(error_response, content_type='application/json', status=401)
-                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+                response.headers['Access-Control-Allow-Credentials'] = 'true'
                 return response
             
             # Get current user session info
@@ -81,7 +85,8 @@ class CORSController(http.Controller):
             # Return JSON response with CORS headers
             json_response = json.dumps(response_data)
             response = Response(json_response, content_type='application/json')
-            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'  # Specific origin for credentials
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
             response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
             _logger.info('SIMPOS CORS: Returned POS metadata with CORS headers')
