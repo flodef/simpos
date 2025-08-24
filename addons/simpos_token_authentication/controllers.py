@@ -92,9 +92,20 @@ class AuthTokenController(http.Controller):
                 if user and user.active:
                     # Verify password using Odoo's authentication system
                     try:
-                        # Use Odoo's built-in password verification
+                        _logger.info(f'MANUAL AUTH: User password hash: {user.password[:20]}... (length: {len(user.password)})')
+                        _logger.info(f'MANUAL AUTH: Input password: {params.get("password")}')
                         password_valid = user._crypt_context().verify(params.get('password'), user.password)
                         _logger.info(f'MANUAL AUTH: Password check result: {password_valid}')
+                        
+                        # Test alternative verification methods for comparison
+                        try:
+                            from passlib.context import CryptContext
+                            crypt_context = CryptContext(schemes=['pbkdf2_sha512', 'plaintext'], deprecated=['plaintext'])
+                            alt_valid = crypt_context.verify(params.get('password'), user.password)
+                            _logger.info(f'MANUAL AUTH: Alternative password check: {alt_valid}')
+                        except Exception as alt_error:
+                            _logger.info(f'MANUAL AUTH: Alternative verification failed: {alt_error}')
+                            
                     except Exception as password_error:
                         _logger.error(f'MANUAL AUTH: Password verification error: {password_error}')
                         password_valid = False

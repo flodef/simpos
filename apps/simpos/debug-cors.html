@@ -306,14 +306,11 @@
             },
             credentials: 'include', // Important: Include cookies for session
             body: JSON.stringify({
-              jsonrpc: '2.0',
-              method: 'call',
               params: {
                 login: 'test@tradiz.fr',
                 password: 'test',
                 db: 'Annette',
               },
-              id: 1,
             }),
           });
 
@@ -385,7 +382,7 @@
 
           log(`Sign-in OPTIONS with credentials: ${optionsResponse.status}`);
 
-          // Then test actual request with credentials
+          // Then test actual request with credentials (matching real app format)
           const response = await fetch(`${serverUrl}/simpos/v1/sign_in`, {
             method: 'POST',
             headers: {
@@ -394,14 +391,11 @@
             },
             credentials: 'include',
             body: JSON.stringify({
-              jsonrpc: '2.0',
-              method: 'call',
               params: {
                 login: 'test@tradiz.fr',
                 password: 'test',
                 db: 'Annette',
               },
-              id: 1,
             }),
           });
 
