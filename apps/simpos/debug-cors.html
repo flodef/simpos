@@ -62,6 +62,7 @@
       <h3>Backend Server URL</h3>
       <input
         type="text"
+        value="http://45.63.115.102:8069"
         id="serverUrl"
         placeholder="http://your-server:8069"
         style="width: 300px; padding: 5px"
@@ -89,17 +90,54 @@
 
     <div class="section">
       <h3>Test 3: Authentication Flow</h3>
-      <div style="margin-bottom: 15px;">
-        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Login/Email:</label>
-        <input type="email" id="loginInput" placeholder="test@tradiz.fr" style="padding: 8px; width: 250px; border: 1px solid #ddd; border-radius: 4px;" />
+      <div style="margin-bottom: 15px">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold"
+          >Login/Email:</label
+        >
+        <input
+          type="email"
+          id="loginInput"
+          placeholder="test@toto.fr"
+          style="
+            padding: 8px;
+            width: 250px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+          "
+        />
       </div>
-      <div style="margin-bottom: 15px;">
-        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Password:</label>
-        <input type="password" id="passwordInput" placeholder="Enter password" style="padding: 8px; width: 250px; border: 1px solid #ddd; border-radius: 4px;" />
+      <div style="margin-bottom: 15px">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold"
+          >Password:</label
+        >
+        <input
+          type="password"
+          id="passwordInput"
+          placeholder="Enter password"
+          style="
+            padding: 8px;
+            width: 250px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+          "
+        />
       </div>
-      <div style="margin-bottom: 15px;">
-        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Database:</label>
-        <input type="text" id="databaseInput" value="Annette" placeholder="Annette" style="padding: 8px; width: 250px; border: 1px solid #ddd; border-radius: 4px;" />
+      <div style="margin-bottom: 15px">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold"
+          >Database:</label
+        >
+        <input
+          type="text"
+          id="databaseInput"
+          value="Annette"
+          placeholder="Annette"
+          style="
+            padding: 8px;
+            width: 250px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+          "
+        />
       </div>
       <button onclick="testFullAuthFlow()">Test Full Auth Flow</button>
       <button onclick="testSigninWithCredentials()">
@@ -187,7 +225,7 @@
             {
               method: 'OPTIONS',
               headers: {
-                Origin: window.location.origin,
+                Origin: window.location.origin ?? 'http://localhost:8069',
                 'Access-Control-Request-Method': 'POST',
                 'Access-Control-Request-Headers': 'content-type',
               },
@@ -319,8 +357,11 @@
             credentials: 'include', // Important: Include cookies for session
             body: JSON.stringify({
               params: {
-                login: document.getElementById('loginInput').value || 'test@tradiz.fr',
-                password: document.getElementById('passwordInput').value || 'test',
+                login:
+                  document.getElementById('loginInput').value ||
+                  'test@tradiz.fr',
+                password:
+                  document.getElementById('passwordInput').value || 'test',
                 db: document.getElementById('databaseInput').value || 'Annette',
               },
             }),
@@ -378,6 +419,14 @@
       }
 
       async function testSigninWithCredentials() {
+        const login = document.getElementById('loginInput').value;
+        const password = document.getElementById('passwordInput').value;
+        const database = document.getElementById('databaseInput').value;
+        if (!login || !password || !database) {
+          log('Missing credentials');
+          return;
+        }
+
         log('Testing Sign-in with credentials: include...');
         try {
           // Test OPTIONS first
@@ -399,31 +448,46 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Origin': 'http://localhost:8069'
+              Origin: window.location.origin ?? 'http://localhost:8069',
             },
             credentials: 'include',
             body: JSON.stringify({
               params: {
                 login: login,
                 password: password,
-                db: database
-              }
-            })
+                db: database,
+              },
+            }),
           });
-          
+
           const data = await response.json();
           console.log('Sign-in response:', data);
-          document.getElementById('signinResult').textContent = JSON.stringify(data, null, 2);
-          
+          log(`Sign-in Response: ${JSON.stringify(data, null, 2)}`);
+
+          displayResult(
+            'authResult',
+            data.success || false,
+            data.success
+              ? 'Authentication successful'
+              : `Authentication failed: ${data.message || 'Unknown error'}`,
+          );
+
           // Store session info for next request
-          if (data.success) {
-            console.log('Authentication successful - session should be established');
-          }
-          
+          console.log(
+            data.success
+              ? 'Authentication successful - session should be established'
+              : 'Authentication failed - session should not be established',
+          );
+
           return data;
         } catch (error) {
           console.error('Sign-in error:', error);
-          document.getElementById('signinResult').textContent = 'Error: ' + error.message;
+          log(`❌ Sign-in Error: ${error.message}`);
+          displayResult(
+            'authResult',
+            false,
+            `Sign-in failed: ${error.message}`,
+          );
           return null;
         }
       }

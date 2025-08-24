@@ -77,85 +77,26 @@ class AuthTokenController(http.Controller):
         from odoo import SUPERUSER_ID
         
         try:
-            _logger.info(f'MANUAL AUTH: Starting authentication for login: {params.get("login")}')
+            _logger.info(f'NATIVE AUTH: Starting authentication for login: {params.get("login")}')
             
-            # Create a registry for the specific database
-            reg = registry.Registry(db_name)
+            # Use Odoo's native authentication system
+            user_id = request.session.authenticate(db_name, params.get('login'), params.get('password'))
+            _logger.info(f'NATIVE AUTH: Authentication result - user_id: {user_id}')
             
-            with reg.cursor() as cr:
-                env = api.Environment(cr, SUPERUSER_ID, {})
+            if user_id:
+                _logger.info(f'NATIVE AUTH: Success! User {user_id} authenticated')
+                _logger.info(f'NATIVE AUTH: Session data - uid: {request.session.get("uid")}, login: {request.session.get("login")}, db: {request.session.get("db")}')
+                _logger.info(f'NATIVE AUTH: Session ID: {request.session.sid}')
                 
-                # Find user by login
-                user = env['res.users'].search([('login', '=', params.get('login'))], limit=1)
-                _logger.info(f'MANUAL AUTH: User search result: {user}, active: {user.active if user else "N/A"}')
-                
-                # Debug user fields
-                if user:
-                    _logger.info(f'MANUAL AUTH: User ID: {user.id}, Login: {user.login}, Name: {user.name}')
-                    _logger.info(f'MANUAL AUTH: User write_date: {user.write_date}')
-                    _logger.info(f'MANUAL AUTH: User password field exists: {hasattr(user, "password")}')
-                
-                if user and user.active:
-                    # Verify password using Odoo's authentication system
-                    try:
-                        _logger.info(f'MANUAL AUTH: User password hash: {user.password[:20] if user.password else "EMPTY"}... (length: {len(user.password)})')
-                        _logger.info(f'MANUAL AUTH: Input password: {params.get("password")}')
-                        
-                        # TEMPORARY: For testing, allow bypass if specific test password
-                        if params.get('password') == 'test123' and not user.password:
-                            _logger.info('MANUAL AUTH: TEMPORARY BYPASS - Using test password for empty hash user')
-                            password_valid = True
-                        elif user.password:
-                            password_valid = user._crypt_context().verify(params.get('password'), user.password)
-                        else:
-                            password_valid = False
-                            
-                        _logger.info(f'MANUAL AUTH: Password check result: {password_valid}')
-                        
-                        # Test alternative verification methods for comparison
-                        if user.password:
-                            try:
-                                from passlib.context import CryptContext
-                                crypt_context = CryptContext(schemes=['pbkdf2_sha512', 'plaintext'], deprecated=['plaintext'])
-                                alt_valid = crypt_context.verify(params.get('password'), user.password)
-                                _logger.info(f'MANUAL AUTH: Alternative password check: {alt_valid}')
-                            except Exception as alt_error:
-                                _logger.error(f'MANUAL AUTH: Alternative password verification error: {alt_error}')
-                            
-                    except Exception as password_error:
-                        _logger.error(f'MANUAL AUTH: Password verification error: {password_error}')
-                        password_valid = False
-                    
-                    if password_valid:
-                        user_id = user.id
-                        _logger.info(f'MANUAL AUTH: Before session update - current session: uid={request.session.get("uid")}, db={request.session.get("db")}')
-                        
-                        # Manually set session data - bypass session.authenticate()
-                        request.session['uid'] = user_id
-                        request.session['login'] = user.login
-                        request.session['db'] = db_name  
-                        request.session['session_token'] = None
-                        request.session.rotate = True
-                        
-                        # Force session commit
-                        request.session.save()
-                        
-                        # Verify session was saved
-                        _logger.info(f'MANUAL AUTH: Session data set - uid: {request.session.get("uid")}, login: {request.session.get("login")}, db: {request.session.get("db")}')
-                        _logger.info(f'MANUAL AUTH: Session ID: {request.session.sid}')
-                        
-                        return json.dumps({
-                            'success': True,
-                            'user_id': user_id,
-                            'login': user.login,
-                            'message': 'Authentication successful'
-                        })
-                    else:
-                        _logger.info(f'MANUAL AUTH: Invalid password for user: {params.get("login")}')
-                        user_id = None
-                else:
-                    _logger.info(f'MANUAL AUTH: User not found or inactive: {params.get("login")}')
-                    user_id = None
+                return json.dumps({
+                    'success': True,
+                    'user_id': user_id,
+                    'login': params.get('login'),
+                    'message': 'Authentication successful'
+                })
+            else:
+                _logger.info(f'NATIVE AUTH: Failed - invalid credentials for {params.get("login")}')
+                user_id = None
                     
         except Exception as e:
             _logger.error(f'Authentication system error: {e}', exc_info=True)
