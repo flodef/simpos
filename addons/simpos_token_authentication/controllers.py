@@ -38,8 +38,10 @@ class AuthTokenController(http.Controller):
         # Parse JSON data from POST request
         try:
             data = json.loads(request.httprequest.get_data(as_text=True))
-            params = data.get('params', {})
-            _logger.info(f'Received params: {params}')
+            # Frontend sends data directly, not wrapped in 'params'
+            params = data if isinstance(data, dict) else {}
+            _logger.info(f'Received data: {data}')
+            _logger.info(f'Parsed params: {params}')
         except Exception as e:
             _logger.error(f'Failed to parse JSON data: {e}')
             error_response = json.dumps(make_error('Invalid JSON data'))
@@ -158,6 +160,7 @@ class AuthTokenController(http.Controller):
                 _logger.info(f'SIMPOS AUTH: Session ID: {session_id}, Available cookies: {list(request.httprequest.cookies.keys())}')
                 
                 # Set session cookie with proper SameSite attributes for cross-origin
+                # Use Werkzeug's set_cookie method with explicit SameSite=None
                 response.set_cookie(
                     'session_id',
                     session_id,
@@ -167,6 +170,9 @@ class AuthTokenController(http.Controller):
                     secure=True,  # Required when SameSite=None
                     path='/'
                 )
+                # Also manually add Set-Cookie header to ensure SameSite=None is set
+                cookie_header = f'session_id={session_id}; Max-Age=3600; HttpOnly; SameSite=None; Secure; Path=/'
+                response.headers['Set-Cookie'] = cookie_header
                 _logger.info(f'SIMPOS AUTH: Set session_id cookie with SameSite=None for cross-origin usage')
                 
                 _logger.info(f'SIMPOS AUTH: Added CORS headers to success response for origin: {origin}')
