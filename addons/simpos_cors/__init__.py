@@ -8,7 +8,7 @@ _logger = logging.getLogger(__name__)
 class CORSController(http.Controller):
     """CORS controller for API endpoints"""
     
-    @http.route('/pos_metadata', type='http', auth='none', csrf=False, methods=['POST', 'OPTIONS'])
+    @http.route('/pos_metadata', type='http', auth='user', csrf=False, methods=['POST', 'OPTIONS'])
     def get_pos_metadata(self, **args):
         """Provide POS metadata endpoint with CORS support"""
         import json
