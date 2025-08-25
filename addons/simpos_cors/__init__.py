@@ -8,14 +8,14 @@ _logger = logging.getLogger(__name__)
 class CORSController(http.Controller):
     """CORS controller for API endpoints"""
     
-    @http.route('/pos_metadata', type='http', auth='none', csrf=False, methods=['POST'])
+    @http.route('/pos_metadata', type='http', auth='public', csrf=False, methods=['POST'])
     def pos_metadata_post(self, **args):
         """Handle POST for /pos_metadata with manual session validation"""
         import json
         from werkzeug.wrappers import Response
         from odoo.http import request
         
-        # Check session authentication manually (same as custom auth endpoint)
+        # Check session authentication with auth='public' (loads session context)
         _logger.info(f'POS Metadata: Checking session - uid: {request.session.uid}, db: {request.session.db}')
         if not request.session.uid:
             _logger.error('POS Metadata: No authenticated session found')
