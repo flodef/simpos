@@ -162,6 +162,7 @@
     </div>
 
     <script>
+      const origin = window.location.origin || 'http://localhost:5173';
       let serverUrl = 'http://localhost:8069'; // Default
 
       function updateServer() {
@@ -225,7 +226,7 @@
             {
               method: 'OPTIONS',
               headers: {
-                Origin: window.location.origin ?? 'http://localhost:8069',
+                Origin: origin,
                 'Access-Control-Request-Method': 'POST',
                 'Access-Control-Request-Headers': 'content-type',
               },
@@ -258,7 +259,7 @@
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                Origin: window.location.origin,
+                Origin: origin,
               },
               body: JSON.stringify({
                 jsonrpc: '2.0',
@@ -301,7 +302,7 @@
           const optionsResponse = await fetch(`${serverUrl}/pos_metadata`, {
             method: 'OPTIONS',
             headers: {
-              Origin: window.location.origin,
+              Origin: origin,
             },
           });
 
@@ -312,7 +313,7 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Origin: window.location.origin,
+              Origin: origin,
             },
             body: JSON.stringify({
               params: {
@@ -352,7 +353,7 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Origin: window.location.origin,
+              Origin: origin,
             },
             credentials: 'include', // Important: Include cookies for session
             body: JSON.stringify({
@@ -383,7 +384,7 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Origin: window.location.origin,
+              Origin: origin,
             },
             credentials: 'include', // Use the session from sign-in
             body: JSON.stringify({
@@ -435,7 +436,7 @@
             {
               method: 'OPTIONS',
               headers: {
-                Origin: window.location.origin,
+                Origin: origin,
               },
               credentials: 'include',
             },
@@ -448,7 +449,7 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Origin: window.location.origin ?? 'http://localhost:8069',
+              Origin: origin,
             },
             credentials: 'include',
             body: JSON.stringify({

@@ -94,12 +94,26 @@ class AuthTokenController(http.Controller):
                 _logger.info(f'NATIVE AUTH: Session data - uid: {request.session.get("uid")}, login: {request.session.get("login")}, db: {request.session.get("db")}')
                 _logger.info(f'NATIVE AUTH: Session ID: {request.session.sid}')
                 
-                return json.dumps({
+                # Create proper response with CORS headers
+                response_data = {
                     'success': True,
                     'user_id': user_id,
                     'login': params.get('login'),
                     'message': 'Authentication successful'
-                })
+                }
+                json_response = json.dumps(response_data)
+                response = Response(json_response, content_type='application/json')
+                origin = request.httprequest.headers.get('Origin', '')
+                allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
+                if origin in allowed_origins or origin.startswith('file://'):
+                    response.headers['Access-Control-Allow-Origin'] = origin
+                else:
+                    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+                response.headers['Access-Control-Allow-Credentials'] = 'true'
+                response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+                _logger.info(f'SIMPOS AUTH: Added CORS headers to success response for origin: {origin}')
+                return response
             else:
                 _logger.info(f'NATIVE AUTH: Failed - invalid credentials for {params.get("login")}')
                 user_id = None
