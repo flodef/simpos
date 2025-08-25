@@ -357,58 +357,39 @@
             },
             credentials: 'include', // Important: Include cookies for session
             body: JSON.stringify({
-              params: {
-                login:
-                  document.getElementById('loginInput').value ||
-                  'test@tradiz.fr',
-                password:
-                  document.getElementById('passwordInput').value || 'test',
-                db: document.getElementById('databaseInput').value || 'Annette',
-              },
+              login:
+                document.getElementById('loginInput').value ||
+                'admin',
+              password:
+                document.getElementById('passwordInput').value || 'admin',
+              db_name: document.getElementById('databaseInput').value || 'Annette',
+              config_id: 1, // Request POS metadata with authentication
             }),
           });
 
           log(`Sign-in: ${signInResponse.status} ${signInResponse.statusText}`);
           if (signInResponse.ok) {
-            const responseText = await signInResponse.text();
-            log(
-              `Sign-in response preview: ${responseText.substring(0, 200)}...`,
-            );
+            const signInResult = await signInResponse.json();
+            log('✅ Sign-in successful!');
+            log('Sign-in result: ' + JSON.stringify(signInResult, null, 2));
+            
+            // Check if POS metadata was included in sign-in response
+            if (signInResult.pos_metadata) {
+              log('✅ POS Metadata included in sign-in response!');
+              log('Metadata: ' + JSON.stringify(signInResult.pos_metadata, null, 2));
+            } else {
+              log('ℹ️ No POS metadata in sign-in response (config_id not provided or failed)');
+            }
           } else {
             throw new Error(`Sign-in failed: ${signInResponse.status}`);
           }
 
-          // Step 2: Use the authenticated session for metadata
-          log('Step 2: Fetching POS metadata with authenticated session...');
-          const metadataResponse = await fetch(`${serverUrl}/pos_metadata`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Origin: origin,
-            },
-            credentials: 'include', // Use the session from sign-in
-            body: JSON.stringify({
-              params: {
-                config_id: 1,
-              },
-            }),
-          });
-
-          log(
-            `Metadata: ${metadataResponse.status} ${metadataResponse.statusText}`,
-          );
-
           displayResult(
             'authResult',
-            metadataResponse.ok,
-            `Full auth flow: Sign-in ${signInResponse.status} → Metadata ${metadataResponse.status}`,
-            metadataResponse.headers,
+            signInResponse.ok,
+            `Unified auth flow: Sign-in ${signInResponse.status} with POS metadata`,
+            signInResponse.headers,
           );
-
-          if (metadataResponse.ok) {
-            const responseText = await metadataResponse.text();
-            log(`✅ Success! Metadata: ${responseText.substring(0, 200)}...`);
-          }
         } catch (error) {
           log(`❌ Full auth flow failed: ${error.message}`);
           displayResult(

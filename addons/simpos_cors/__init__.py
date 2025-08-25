@@ -8,18 +8,26 @@ _logger = logging.getLogger(__name__)
 class CORSController(http.Controller):
     """CORS controller for API endpoints"""
     
-    @http.route('/pos_metadata', type='http', auth='public', csrf=False, methods=['POST'])
+    @http.route('/pos_metadata', type='http', auth='none', csrf=False, methods=['OPTIONS'])
+    def pos_metadata_options(self, **args):
+        """Handle OPTIONS preflight for /pos_metadata"""
+        from werkzeug.wrappers import Response
+        from odoo.http import request
+        
+        response = Response('', status=200)
+        self._add_cors_headers(response, request.httprequest.headers.get('Origin', ''))
+        _logger.info('POS Metadata: OPTIONS preflight handled')
+        return response
+    
+    @http.route('/pos_metadata', type='http', auth='user', csrf=False, methods=['POST'])
     def pos_metadata_post(self, **args):
-        """Handle POST for /pos_metadata with manual session validation"""
+        """Handle POST for /pos_metadata with Odoo native auth"""
         import json
         from werkzeug.wrappers import Response
         from odoo.http import request
         
-        # Check session authentication with auth='public' (loads session context)
-        _logger.info(f'POS Metadata: Checking session - uid: {request.session.uid}, db: {request.session.db}')
-        if not request.session.uid:
-            _logger.error('POS Metadata: No authenticated session found')
-            return self._cors_error_response('Authentication required', 401)
+        # With auth='user', session is automatically validated
+        _logger.info(f'POS Metadata: Session authenticated - uid: {request.session.uid}, db: {request.session.db}')
         
         # Parse JSON data from POST request
         try:
