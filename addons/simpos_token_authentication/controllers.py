@@ -79,10 +79,14 @@ class AuthTokenController(http.Controller):
         try:
             _logger.info(f'NATIVE AUTH: Starting authentication for login: {params.get("login")}')
             
-            # Use Odoo's native authentication system
-            request.session.db = db_name
-            user_id = request.session.authenticate(params.get('login'), params.get('password'))
-            _logger.info(f'NATIVE AUTH: Authentication result - user_id: {user_id}')
+            # Use Odoo's native authentication system with correct parameters
+            credential = {
+                'login': params.get('login'),
+                'password': params.get('password')
+            }
+            auth_info = request.session.authenticate(db_name, credential)
+            user_id = auth_info.get('uid') if auth_info else None
+            _logger.info(f'NATIVE AUTH: Authentication result - auth_info: {auth_info}, user_id: {user_id}')
             
             if user_id:
                 _logger.info(f'NATIVE AUTH: Success! User {user_id} authenticated')
