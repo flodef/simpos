@@ -8,41 +8,18 @@ _logger = logging.getLogger(__name__)
 class CORSController(http.Controller):
     """CORS controller for API endpoints"""
     
-    @http.route('/pos_metadata', type='http', auth='none', csrf=False, methods=['OPTIONS', 'POST'], save_session=False)
-    def pos_metadata_handler(self, **args):
-        """Handle both OPTIONS and POST for /pos_metadata with CORS support"""
+    @http.route('/pos_metadata', type='http', auth='none', csrf=False, methods=['POST'])
+    def pos_metadata_post(self, **args):
+        """Handle POST for /pos_metadata with manual session validation"""
         import json
         from werkzeug.wrappers import Response
         from odoo.http import request
         
-        # Handle OPTIONS preflight requests
-        if request.httprequest.method == 'OPTIONS':
-            response = Response('', status=200)
-            origin = request.httprequest.headers.get('Origin', '')
-            allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
-            if origin in allowed_origins or origin.startswith('file://'):
-                response.headers['Access-Control-Allow-Origin'] = origin
-            else:
-                response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-            response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
-            response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-            response.headers['Access-Control-Max-Age'] = '86400'
-            _logger.info(f'SIMPOS CORS: Handled OPTIONS preflight for /pos_metadata from origin: {origin}')
-            return response
-        
-        # Verify user authentication for POST requests
+        # Check session authentication manually (same as custom auth endpoint)
+        _logger.info(f'POS Metadata: Checking session - uid: {request.session.uid}, db: {request.session.db}')
         if not request.session.uid:
-            error_response = json.dumps({'error': 'Authentication required'})
-            response = Response(error_response, status=401, content_type='application/json')
-            origin = request.httprequest.headers.get('Origin', '')
-            allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
-            if origin in allowed_origins or origin.startswith('file://'):
-                response.headers['Access-Control-Allow-Origin'] = origin
-            else:
-                response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-            return response
+            _logger.error('POS Metadata: No authenticated session found')
+            return self._cors_error_response('Authentication required', 401)
         
         # Parse JSON data from POST request
         try:
@@ -52,40 +29,17 @@ class CORSController(http.Controller):
             _logger.info(f'POS Metadata requested for config_id: {config_id}')
         except Exception as e:
             _logger.error(f'Failed to parse JSON data: {e}')
-            error_response = json.dumps({'error': 'Invalid JSON data'})
-            response = Response(error_response, content_type='application/json')
-            origin = request.httprequest.headers.get('Origin', '')
-            allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
-            if origin in allowed_origins or origin.startswith('file://'):
-                response.headers['Access-Control-Allow-Origin'] = origin
-            else:
-                response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-            return response
+            return self._cors_error_response('Invalid JSON data')
         
         try:
-            # Get user from current session (should be authenticated from sign-in)
-            _logger.info(f'Checking session: uid={request.session.uid}, db={request.session.db}, login={request.session.login}')
-            if not request.session.uid:
-                _logger.error('No authenticated user session found')
-                error_response = json.dumps({'error': 'Not authenticated'})
-                response = Response(error_response, content_type='application/json', status=401)
-                origin = request.httprequest.headers.get('Origin', '')
-                allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
-                if origin in allowed_origins or origin.startswith('file://'):
-                    response.headers['Access-Control-Allow-Origin'] = origin
-                else:
-                    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-                response.headers['Access-Control-Allow-Credentials'] = 'true'
-                return response
-            
-            # Get current user session info
+            # Get current user and company using session context
             user = request.env.user
             company = user.company_id
+            _logger.info(f'POS Metadata: Found user {user.name} (ID: {user.id}) from session')
             
-            # Build response data similar to standard Odoo POS metadata
+            # Build response data (same as before)
             response_data = {
-                'loginNumber': 1,
+                'success': True,
                 'sessionInfo': {
                     'userContext': {
                         'uid': user.id,
@@ -104,30 +58,48 @@ class CORSController(http.Controller):
             # Return JSON response with CORS headers
             json_response = json.dumps(response_data)
             response = Response(json_response, content_type='application/json')
-            origin = request.httprequest.headers.get('Origin', '')
-            allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
-            if origin in allowed_origins or origin.startswith('file://'):
-                response.headers['Access-Control-Allow-Origin'] = origin
-            else:
-                response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-            response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
-            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
-            _logger.info(f'SIMPOS CORS: Returned POS metadata with CORS headers for origin: {origin}')
+            self._add_cors_headers(response, request.httprequest.headers.get('Origin', ''))
+            _logger.info(f'SIMPOS CORS: Returned POS metadata with CORS headers')
             return response
             
         except Exception as e:
             _logger.error(f'Error getting POS metadata: {e}', exc_info=True)
-            error_response = json.dumps({'error': 'Failed to get POS metadata'})
-            response = Response(error_response, content_type='application/json')
-            origin = request.httprequest.headers.get('Origin', '')
-            allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
-            if origin in allowed_origins or origin.startswith('file://'):
-                response.headers['Access-Control-Allow-Origin'] = origin
-            else:
-                response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-            return response
+            return self._cors_error_response('Failed to get POS metadata')
+    
+    @http.route('/pos_metadata', type='http', auth='none', csrf=False, methods=['OPTIONS'])
+    def pos_metadata_options(self, **args):
+        """Handle OPTIONS preflight for /pos_metadata"""
+        from werkzeug.wrappers import Response
+        from odoo.http import request
+        
+        response = Response('', status=200)
+        origin = request.httprequest.headers.get('Origin', '')
+        self._add_cors_headers(response, origin)
+        _logger.info(f'SIMPOS CORS: Handled OPTIONS preflight for /pos_metadata from origin: {origin}')
+        return response
+    
+    def _add_cors_headers(self, response, origin):
+        """Add CORS headers to response"""
+        allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
+        if origin in allowed_origins or origin.startswith('file://'):
+            response.headers['Access-Control-Allow-Origin'] = origin
+        else:
+            response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Max-Age'] = '86400'
+    
+    def _cors_error_response(self, message, status=400):
+        """Create error response with CORS headers"""
+        import json
+        from werkzeug.wrappers import Response
+        from odoo.http import request
+        
+        error_response = json.dumps({'error': message})
+        response = Response(error_response, status=status, content_type='application/json')
+        self._add_cors_headers(response, request.httprequest.headers.get('Origin', ''))
+        return response
     
     @http.route('/web/dataset/call_kw/<path:path>', type='http', auth='none', methods=['OPTIONS'], csrf=False)
     def web_dataset_options(self, path=None, **kwargs):
