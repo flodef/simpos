@@ -112,6 +112,21 @@ class AuthTokenController(http.Controller):
                 response.headers['Access-Control-Allow-Credentials'] = 'true'
                 response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
                 response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+                
+                # Fix SameSite cookie attribute for cross-origin session persistence
+                session_cookie_name = request.session.session_store.session_name or 'session_id'
+                if session_cookie_name in request.httprequest.cookies:
+                    # Update session cookie with SameSite=None; Secure for cross-origin
+                    response.set_cookie(
+                        session_cookie_name,
+                        request.session.sid,
+                        max_age=request.session.session_store.session_timeout,
+                        httponly=True,
+                        samesite='None',
+                        secure=True  # Required when SameSite=None
+                    )
+                    _logger.info(f'SIMPOS AUTH: Set session cookie with SameSite=None for cross-origin usage')
+                
                 _logger.info(f'SIMPOS AUTH: Added CORS headers to success response for origin: {origin}')
                 return response
             else:
