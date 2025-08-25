@@ -8,11 +8,11 @@ _logger = logging.getLogger(__name__)
 class CORSController(http.Controller):
     """CORS controller for API endpoints"""
     
-    @http.route('/pos_metadata', type='http', auth='none', csrf=False, methods=['OPTIONS'])
+    @http.route(['/pos_metadata'], type='http', auth='public', csrf=False, methods=['OPTIONS'], save_session=False)
     def pos_metadata_options(self, **args):
         """Handle OPTIONS preflight for /pos_metadata"""
         from odoo.http import request
-        response = Response('')
+        response = Response('', status=200)
         origin = request.httprequest.headers.get('Origin', '')
         allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
         if origin in allowed_origins or origin.startswith('file://'):
@@ -26,7 +26,7 @@ class CORSController(http.Controller):
         _logger.info(f'SIMPOS CORS: Handled OPTIONS preflight for /pos_metadata from origin: {origin}')
         return response
     
-    @http.route('/pos_metadata', type='http', auth='user', csrf=False, methods=['POST'])
+    @http.route('/pos_metadata', type='http', auth='user', csrf=False, methods=['POST'], save_session=False)
     def get_pos_metadata(self, **args):
         """Provide POS metadata endpoint with CORS support"""
         import json
@@ -148,8 +148,20 @@ if hasattr(WerkzeugResponse, '__init__'):
         # Call original init
         original_werkzeug_init(self, *args, **kwargs)
         
-        # Skip adding wildcard CORS headers - specific endpoints handle their own CORS
-        _logger.debug(f'SIMPOS CORS: Werkzeug response initialized (no wildcard CORS)')
+        # Add CORS headers for cross-origin requests
+        from odoo.http import request
+        if hasattr(request, 'httprequest') and request.httprequest:
+            origin = request.httprequest.headers.get('Origin', '')
+            if origin and origin != request.httprequest.host_url.rstrip('/'):
+                allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
+                if origin in allowed_origins or origin.startswith('file://'):
+                    self.headers['Access-Control-Allow-Origin'] = origin
+                else:
+                    self.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+                self.headers['Access-Control-Allow-Credentials'] = 'true'
+                self.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+                self.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+                _logger.debug(f'SIMPOS CORS: Added CORS headers to Werkzeug response for origin: {origin}')
     
     WerkzeugResponse.__init__ = werkzeug_init_with_cors
     _logger.info('SIMPOS CORS: Patched Werkzeug Response.__init__')
@@ -163,8 +175,18 @@ if hasattr(http, 'JsonRequest'):
             _logger.debug(f'SIMPOS CORS: Intercepting JSON response')
             response = original_json_response(self, result, error)
             
-            # Skip adding wildcard CORS headers - specific endpoints handle their own CORS
-            _logger.debug(f'SIMPOS CORS: JSON response processed (no wildcard CORS)')
+            # Add CORS headers for cross-origin requests
+            origin = self.httprequest.headers.get('Origin', '')
+            if origin and origin != self.httprequest.host_url.rstrip('/'):
+                allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
+                if origin in allowed_origins or origin.startswith('file://'):
+                    response.headers['Access-Control-Allow-Origin'] = origin
+                else:
+                    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+                response.headers['Access-Control-Allow-Credentials'] = 'true'
+                response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+                _logger.debug(f'SIMPOS CORS: Added CORS headers to JSON response for origin: {origin}')
             
             return response
         
@@ -180,8 +202,18 @@ if hasattr(http, 'JsonRequest') and hasattr(http.JsonRequest, 'dispatch'):
         _logger.info(f'SIMPOS CORS: JSON dispatch called for route: {route_path}')
         response = original_json_dispatch(self)
         
-        # Skip adding wildcard CORS headers - specific endpoints handle their own CORS
-        _logger.debug(f'SIMPOS CORS: JSON dispatch processed for {route_path} (no wildcard CORS)')
+        # Add CORS headers for cross-origin requests to standard Odoo endpoints
+        origin = self.httprequest.headers.get('Origin', '')
+        if origin and origin != self.httprequest.host_url.rstrip('/') and hasattr(response, 'headers'):
+            allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
+            if origin in allowed_origins or origin.startswith('file://'):
+                response.headers['Access-Control-Allow-Origin'] = origin
+            else:
+                response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
+            _logger.debug(f'SIMPOS CORS: Added CORS headers to JSON dispatch response for {route_path} from origin: {origin}')
         
         return response
     
