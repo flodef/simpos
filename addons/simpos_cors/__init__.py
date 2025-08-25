@@ -8,29 +8,32 @@ _logger = logging.getLogger(__name__)
 class CORSController(http.Controller):
     """CORS controller for API endpoints"""
     
-    @http.route('/pos_metadata', type='http', auth='user', csrf=False, methods=['POST', 'OPTIONS'])
+    @http.route('/pos_metadata', type='http', auth='none', csrf=False, methods=['OPTIONS'])
+    def pos_metadata_options(self, **args):
+        """Handle OPTIONS preflight for /pos_metadata"""
+        from odoo.http import request
+        response = Response('')
+        origin = request.httprequest.headers.get('Origin', '')
+        allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
+        if origin in allowed_origins or origin.startswith('file://'):
+            response.headers['Access-Control-Allow-Origin'] = origin
+        else:
+            response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Max-Age'] = '86400'
+        _logger.info(f'SIMPOS CORS: Handled OPTIONS preflight for /pos_metadata from origin: {origin}')
+        return response
+    
+    @http.route('/pos_metadata', type='http', auth='user', csrf=False, methods=['POST'])
     def get_pos_metadata(self, **args):
         """Provide POS metadata endpoint with CORS support"""
         import json
         from werkzeug.wrappers import Response
         from odoo.http import request
         
-        # Handle OPTIONS preflight requests first
-        if request.httprequest.method == 'OPTIONS':
-            response = Response('')
-            # Allow multiple origins for development
-            origin = request.httprequest.headers.get('Origin', '')
-            allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
-            if origin in allowed_origins or origin.startswith('file://'):
-                response.headers['Access-Control-Allow-Origin'] = origin
-            else:
-                response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-            response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
-            response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-            response.headers['Access-Control-Max-Age'] = '86400'
-            _logger.info(f'SIMPOS CORS: Handled OPTIONS preflight for /pos_metadata from origin: {origin}')
-            return response
+        # POST requests only - OPTIONS handled by separate route
         
         # Parse JSON data from POST request
         try:
