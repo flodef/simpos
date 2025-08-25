@@ -81,6 +81,7 @@ class AuthTokenController(http.Controller):
             
             # Use Odoo's native authentication system with correct parameters
             credential = {
+                'type': 'password',
                 'login': params.get('login'),
                 'password': params.get('password')
             }
