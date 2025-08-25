@@ -120,8 +120,14 @@ class CORSController(http.Controller):
     @http.route('/web/dataset/call_kw/<path:path>', type='http', auth='none', methods=['OPTIONS'], csrf=False)
     def web_dataset_options(self, path=None, **kwargs):
         """Handle OPTIONS preflight for /web/dataset/call_kw/* endpoints"""
+        from odoo.http import request
         response = Response('')
-        response.headers['Access-Control-Allow-Origin'] = '*'
+        origin = request.httprequest.headers.get('Origin', '')
+        allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
+        if origin in allowed_origins or origin.startswith('file://'):
+            response.headers['Access-Control-Allow-Origin'] = origin
+        else:
+            response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
         response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
@@ -139,13 +145,8 @@ if hasattr(WerkzeugResponse, '__init__'):
         # Call original init
         original_werkzeug_init(self, *args, **kwargs)
         
-        # Add CORS headers to ALL Werkzeug responses
-        self.headers['Access-Control-Allow-Origin'] = '*'
-        self.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
-        self.headers['Access-Control-Allow-Credentials'] = 'true'
-        self.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
-        
-        _logger.debug(f'SIMPOS CORS: Added CORS headers to Werkzeug response')
+        # Skip adding wildcard CORS headers - specific endpoints handle their own CORS
+        _logger.debug(f'SIMPOS CORS: Werkzeug response initialized (no wildcard CORS)')
     
     WerkzeugResponse.__init__ = werkzeug_init_with_cors
     _logger.info('SIMPOS CORS: Patched Werkzeug Response.__init__')
@@ -159,13 +160,8 @@ if hasattr(http, 'JsonRequest'):
             _logger.debug(f'SIMPOS CORS: Intercepting JSON response')
             response = original_json_response(self, result, error)
             
-            # Force add CORS headers
-            if hasattr(response, 'headers'):
-                response.headers['Access-Control-Allow-Origin'] = '*'
-                response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
-                response.headers['Access-Control-Allow-Credentials'] = 'true'
-                response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
-                _logger.debug(f'SIMPOS CORS: Added CORS headers to JSON response: {response.headers}')
+            # Skip adding wildcard CORS headers - specific endpoints handle their own CORS
+            _logger.debug(f'SIMPOS CORS: JSON response processed (no wildcard CORS)')
             
             return response
         
@@ -181,14 +177,8 @@ if hasattr(http, 'JsonRequest') and hasattr(http.JsonRequest, 'dispatch'):
         _logger.info(f'SIMPOS CORS: JSON dispatch called for route: {route_path}')
         response = original_json_dispatch(self)
         
-        # Ensure CORS headers on JSON dispatch responses
-        if hasattr(response, 'headers'):
-            response.headers['Access-Control-Allow-Origin'] = '*'
-            response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
-            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
-            _logger.info(f'SIMPOS CORS: Added CORS headers to JSON dispatch response for {route_path}')
-        else:
-            _logger.warning(f'SIMPOS CORS: Response has no headers attribute for {route_path}')
+        # Skip adding wildcard CORS headers - specific endpoints handle their own CORS
+        _logger.debug(f'SIMPOS CORS: JSON dispatch processed for {route_path} (no wildcard CORS)')
         
         return response
     
