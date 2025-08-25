@@ -90,86 +90,62 @@ class AuthTokenController(http.Controller):
             _logger.info(f'NATIVE AUTH: Authentication result - auth_info: {auth_info}, user_id: {user_id}')
             
             if user_id:
-                    _logger.info(f'NATIVE AUTH: Success - authenticated user ID: {user_id} in session: {request.session.sid}')
-                    
-                    response_data = {
-                        'success': True,
-                        'user_id': user_id,
-                        'login': params.get('login'),
-                        'message': 'Authentication successful'
-                    }
-                    
-                    # If config_id requested, include POS metadata in response
-                    config_id = params.get('config_id')
-                    if config_id:
-                        try:
-                            user = request.env.user
-                            company = user.company_id
+                _logger.info(f'NATIVE AUTH: Success - authenticated user ID: {user_id} in session: {request.session.sid}')
+                
+                response_data = {
+                    'success': True,
+                    'user_id': user_id,
+                    'login': params.get('login'),
+                    'message': 'Authentication successful'
+                }
+                
+                # If config_id requested, include POS metadata in response
+                config_id = params.get('config_id')
+                if config_id:
+                    try:
+                        user = request.env.user
+                        company = user.company_id
+                        
+                        # Get POS config and sessions
+                        pos_config_model = request.env['pos.config']
+                        config = pos_config_model.browse(int(config_id))
+                        
+                        if config and config.exists():
+                            # Get current session for this config
+                            session_model = request.env['pos.session']
+                            current_session = session_model.search([
+                                ('config_id', '=', config.id),
+                                ('state', 'in', ['opening_control', 'opened'])
+                            ], limit=1)
                             
-                            # Get POS config and sessions
-                            pos_config_model = request.env['pos.config']
-                            config = pos_config_model.browse(int(config_id))
-                            
-                            if config and config.exists():
-                                # Get current session for this config
-                                session_model = request.env['pos.session']
-                                current_session = session_model.search([
-                                    ('config_id', '=', config.id),
-                                    ('state', 'in', ['opening_control', 'opened'])
-                                ], limit=1)
-                                
-                                response_data['pos_metadata'] = {
-                                    'userContext': {
-                                        'uid': user.id,
-                                        'user_name': user.name,
-                                        'company_id': company.id,
-                                        'company_name': company.name,
-                                        'lang': user.lang or 'en_US',
-                                        'tz': user.tz or 'UTC'
-                                    },
-                                    'config': {
-                                        'id': config.id,
-                                        'name': config.name,
-                                        'currency': config.currency_id.name if config.currency_id else None,
-                                        'current_session_id': current_session.id if current_session else None,
-                                        'current_session_state': current_session.state if current_session else None
-                                    }
+                            response_data['pos_metadata'] = {
+                                'userContext': {
+                                    'uid': user.id,
+                                    'user_name': user.name,
+                                    'company_id': company.id,
+                                    'company_name': company.name,
+                                    'lang': user.lang or 'en_US',
+                                    'tz': user.tz or 'UTC'
+                                },
+                                'config': {
+                                    'id': config.id,
+                                    'name': config.name,
+                                    'currency': config.currency_id.name if config.currency_id else None,
+                                    'current_session_id': current_session.id if current_session else None,
+                                    'current_session_state': current_session.state if current_session else None
                                 }
-                                _logger.info(f'SIMPOS AUTH: Added POS metadata for config_id: {config_id}')
-                        except Exception as e:
-                            _logger.error(f'Failed to get POS metadata: {e}')
-                            # Don't fail auth if metadata fails, just log the error
-                    json_response = json.dumps(response_data)
-                    response = Response(json_response, content_type='application/json')
-                    origin = request.httprequest.headers.get('Origin', '')
-                    allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
-                    if origin in allowed_origins or origin.startswith('file://'):
-                        response.headers['Access-Control-Allow-Origin'] = origin
-                    else:
-                        response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-                    response.headers['Access-Control-Allow-Credentials'] = 'true'
-                    response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept, x-openerp-session-id, authorization'
-                    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS, DELETE, PATCH'
-                    
-                    # Fix SameSite cookie attribute for cross-origin session persistence
-                    # Odoo typically uses 'session_id' as the cookie name
-                    session_id = request.session.sid
-                    _logger.info(f'SIMPOS AUTH: Session ID: {session_id}, Available cookies: {list(request.httprequest.cookies.keys())}')
-                    
-                    # Set session cookie with proper SameSite attributes for cross-origin
-                    response.set_cookie(
-                        'session_id',
-                        session_id,
-                        max_age=3600,  # 1 hour
-                        httponly=True,
-                        samesite='None',
-                        secure=True,  # Required when SameSite=None
-                        path='/'
-                    )
-                    _logger.info(f'SIMPOS AUTH: Set session_id cookie with SameSite=None for cross-origin usage')
-                    
-                    _logger.info(f'SIMPOS AUTH: Added CORS headers to success response for origin: {origin}')
-                    return response
+                            }
+                            _logger.info(f'SIMPOS AUTH: Added POS metadata for config_id: {config_id}')
+                    except Exception as e:
+                        _logger.error(f'Failed to get POS metadata: {e}')
+                        # Don't fail auth if metadata fails, just log the error
+                
+                json_response = json.dumps(response_data)
+                response = Response(json_response, content_type='application/json')
+                origin = request.httprequest.headers.get('Origin', '')
+                allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'null']
+                if origin in allowed_origins or origin.startswith('file://'):
+                    response.headers['Access-Control-Allow-Origin'] = origin
                 else:
                     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
                 response.headers['Access-Control-Allow-Credentials'] = 'true'
