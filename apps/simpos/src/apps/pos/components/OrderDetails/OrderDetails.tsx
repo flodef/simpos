@@ -14,7 +14,7 @@ import React, { useMemo, useRef } from 'react';
 import styled from '@emotion/styled';
 import dayjs from 'dayjs';
 import html2canvas from 'html2canvas';
-import { useData } from '../../../../contexts/DataProvider';
+import { useData } from '../../contexts/DataProvider/hooks';
 import { RemotePosOrder, RemotePosPayment } from '../../../../services/order';
 import { RemotePosOrderLine } from '../../../../services/order-line';
 import {

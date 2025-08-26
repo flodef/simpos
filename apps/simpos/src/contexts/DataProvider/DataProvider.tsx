@@ -1,14 +1,14 @@
 import keyBy from 'lodash.keyby';
 import {
-  PropsWithChildren,
   createContext,
-  useContext,
+  PropsWithChildren,
   useEffect,
   useReducer,
   useState,
 } from 'react';
 import { worker } from '../../workers';
 
+import { Loading } from '../../apps/pos/components/Loading';
 import { SessionManager } from '../../apps/pos/components/SessionManager';
 import { authService } from '../../services/auth';
 import {
@@ -38,7 +38,6 @@ import {
 import { userRepository } from '../../services/db/user';
 import { useAuth } from '../AuthProvider';
 import { syncData } from './dataLoader';
-import { Loading } from '../../apps/pos/components/Loading';
 
 export interface DataContextState {
   posConfig: PosConfig;
@@ -67,11 +66,13 @@ export type GlobalDataAction =
 
 export type GlobalDataDispatch = (action: GlobalDataAction) => void;
 
-const DataContext = createContext<DataContextState | undefined>(undefined);
-
-const GlobalDataDispatchContext = createContext<GlobalDataDispatch | undefined>(
+export const DataContext = createContext<DataContextState | undefined>(
   undefined,
 );
+
+export const GlobalDataDispatchContext = createContext<
+  GlobalDataDispatch | undefined
+>(undefined);
 
 function globalDataReducer(
   state: DataContextState | undefined,
@@ -121,9 +122,12 @@ export const DataProvider: React.FunctionComponent<PropsWithChildren> = ({
       throw new Error('POS Config data error');
     }
 
-    const { loginNumber } = await authService.refreshMetadata({
-      config_id: posConfig.id,
-    });
+    // Use loginNumber from existing auth metadata (from unified login response)
+    const authMeta = await authService.getAuthMeta();
+    const loginNumber = authMeta?.uid;
+    if (!loginNumber) {
+      throw new Error('No authenticated user found');
+    }
 
     const pricelists = await productPricelistRepository.findByIds(
       posConfig.usePricelist
@@ -226,14 +230,4 @@ export const DataProvider: React.FunctionComponent<PropsWithChildren> = ({
   );
 };
 
-export function useData() {
-  return useContext(DataContext)!;
-}
-
-export function useGlobalDataDispatch(): GlobalDataDispatch {
-  const context = useContext(GlobalDataDispatchContext);
-  if (!context) {
-    throw new Error('useGlobalDataDispatch must be inside a DataProvider');
-  }
-  return context;
-}
+// Hooks moved to ./hooks.ts to fix Fast Refresh warnings

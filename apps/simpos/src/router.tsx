@@ -2,7 +2,7 @@ import { Outlet, createBrowserRouter } from 'react-router-dom';
 import Login from './apps/auth/Login';
 import Pos from './apps/pos';
 import { OrderManager } from './contexts/OrderManager';
-import { DataProvider } from './contexts/DataProvider';
+import { DataProvider } from '../../contexts/DataProvider/hooks';
 import { Home } from './apps/home/Home';
 import SessionScreen from './apps/pos/SessionScreen';
 import ReportScreen from './apps/pos/ReportScreen';

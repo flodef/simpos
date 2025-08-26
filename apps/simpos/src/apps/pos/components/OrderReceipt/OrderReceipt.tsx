@@ -14,7 +14,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import styled from '@emotion/styled';
 import dayjs from 'dayjs';
 import html2canvas from 'html2canvas';
-import { useData } from '../../../../contexts/DataProvider';
+import { useData } from '../../contexts/DataProvider/hooks';
 import { ActiveOrder } from '../../../../contexts/OrderManager';
 import { useActiveOrderExtensions, useMoneyFormatter } from '../../../../hooks';
 import { OrderReceiptRow } from './OrderReceiptRow';

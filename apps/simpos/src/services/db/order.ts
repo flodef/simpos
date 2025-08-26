@@ -2,7 +2,7 @@ import { db } from './db';
 import { posSessionRepository } from './pos-session';
 
 import { zeroPad } from '../../utils';
-import { DataContextState } from '../../contexts/DataProvider';
+import { DataContextState } from '../../contexts/DataProvider/hooks';
 import { Partner, partnerRepository } from './partner';
 import {
   ProductPricelist,

@@ -1,4 +1,10 @@
-import React, { PropsWithChildren, useCallback, useContext, useEffect, useReducer } from 'react';
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useContext,
+  useEffect,
+  useReducer,
+} from 'react';
 import dayjs from 'dayjs';
 import { ActiveOrderExtension } from '../../hooks/extensions/order-extension';
 import { OrderLineExtension } from '../../hooks/extensions/order-line-extension';
@@ -11,7 +17,7 @@ import {
 } from '../../services/db';
 import { Order, orderRepository } from '../../services/db/order';
 import { orderService } from '../../services/order';
-import { useData, useGlobalDataDispatch } from '../DataProvider';
+import { useData, useGlobalDataDispatch } from '../DataProvider/hooks';
 import { worker } from '../../workers';
 import {
   OrderPayload,
@@ -98,9 +104,8 @@ const initialState: OrderManagerState = {
   activeOrder: undefined,
 };
 
-const OrderManagerStateContext = React.createContext<OrderManagerState>(
-  initialState,
-);
+const OrderManagerStateContext =
+  React.createContext<OrderManagerState>(initialState);
 
 const OrderManagerDispatchContext = React.createContext<
   OrderManagerDispatch | undefined
@@ -131,7 +136,7 @@ export function orderManagerReducer(
         ...state,
         activeOrderId: action.payload.id,
       };
-    case 'DELETE_ORDER':
+    case 'DELETE_ORDER': {
       const updatedOrders = state.orders.filter(
         (order) => order.id !== action.payload.id,
       );
@@ -147,6 +152,7 @@ export function orderManagerReducer(
         orders: updatedOrders,
         activeOrderId,
       };
+    }
     case 'ACTIVE_ORDER_LOADED':
       return {
         ...state,
@@ -202,7 +208,9 @@ export function orderManagerReducer(
   }
 }
 
-export const OrderManager: React.FunctionComponent<PropsWithChildren> = ({ children }) => {
+export const OrderManager: React.FunctionComponent<PropsWithChildren> = ({
+  children,
+}) => {
   const [state, dispatch] = useReducer(orderManagerReducer, initialState);
   const globalDataDispatch = useGlobalDataDispatch();
   const data = useData();
@@ -321,7 +329,7 @@ export const OrderManager: React.FunctionComponent<PropsWithChildren> = ({ child
       return canBeMergeOrderLine;
     }
 
-    const price = getPrice(variant, 1, data)
+    const price = getPrice(variant, 1, data);
     const orderLineId = await orderLineRepository.create({
       orderId: state.activeOrderId,
       // TODO: Use getPrice function and check about fiscalPosition
@@ -456,7 +464,7 @@ export const OrderManager: React.FunctionComponent<PropsWithChildren> = ({ child
     }
     return activeOrder;
   };
-  const initilizeOrderManager = async () => {
+  const initilizeOrderManager = useCallback(async () => {
     const currentOrders = await orderRepository.all();
     if (currentOrders.length > 0) {
       dispatch({
@@ -469,10 +477,10 @@ export const OrderManager: React.FunctionComponent<PropsWithChildren> = ({ child
     } else {
       await addNewOrder();
     }
-  };
+  }, [addNewOrder]);
   useEffect(() => {
     initilizeOrderManager();
-  }, []);
+  }, [initilizeOrderManager]);
 
   const fetchOrder = async (orderId: string) => {
     if (orderId) {

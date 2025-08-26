@@ -1,6 +1,6 @@
 import { Container, Box, Button } from '@chakra-ui/react';
 import React, { useEffect, useState } from 'react';
-import { useData } from '../../contexts/DataProvider';
+import { useData } from '../../contexts/DataProvider/hooks';
 import { PosSession } from '../../services/db';
 import { posSessionService } from '../../services/pos-session';
 import { NavigationBarGeneral } from './components/NavigationBar';

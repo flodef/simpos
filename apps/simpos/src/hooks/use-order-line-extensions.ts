@@ -1,7 +1,7 @@
 import keyBy from 'lodash.keyby';
 import { useMemo } from 'react';
 import uniqBy from 'lodash.uniqby';
-import { useData } from '../contexts/DataProvider';
+import { useData } from '../../contexts/DataProvider/hooks';
 import { AccountTax, DecimalPrecision, OrderLine } from '../services/db';
 import { DictionaryOf } from '../types';
 import { roundDecimals, roundPrecision } from '../utils';

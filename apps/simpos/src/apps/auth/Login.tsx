@@ -58,8 +58,22 @@ export const Login: React.FunctionComponent = () => {
           validationSchema={SignInSchema}
           onSubmit={async (values, { setSubmitting }) => {
             try {
-              const { data } = await authService.login(values);
-              auth.signIn(data);
+              const { data } = await authService.login({
+                ...values,
+                config_id: 1 // Use default config_id for unified response
+              });
+              
+              // Convert unified response to AuthUserMeta format
+              const authUserMeta = {
+                uid: data.user_id,
+                accessToken: data.user_id.toString(), // Use user_id as token for now
+                name: data.pos_metadata?.userContext?.user_name || 'User',
+                dbName: import.meta.env.VITE_ODOO_DB,
+                username: data.login,
+                userContext: data.pos_metadata?.userContext || { lang: 'en_US', tz: 'UTC' }
+              };
+              
+              auth.signIn(authUserMeta);
             } catch (e) {
               toast({
                 title: 'Sign in failed',

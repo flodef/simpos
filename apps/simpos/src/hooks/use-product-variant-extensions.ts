@@ -1,4 +1,4 @@
-import { useData } from '../contexts/DataProvider';
+import { useData } from '../../contexts/DataProvider/hooks';
 import { AccountTax, ProductVariant } from '../services/db';
 import { ProductPricelist } from '../services/db/product-pricelist';
 import { computeAll } from './helpers/tax';

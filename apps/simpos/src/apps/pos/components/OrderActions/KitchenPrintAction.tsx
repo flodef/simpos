@@ -3,7 +3,7 @@ import html2canvas from 'html2canvas';
 import { Box, Text, Button, Flex } from '@chakra-ui/react';
 import { useOrderManagerState } from '../../../../contexts/OrderManager';
 import { IconConciergeBell } from '../../../../components/icons/output/IconConciergeBell';
-import { useData } from '../../../../contexts/DataProvider';
+import { useData } from '../../../../contexts/DataProvider/hooks';
 import dayjs from 'dayjs';
 import { SimpleOrderLine } from './SimpleOrderLine';
 
@@ -48,19 +48,19 @@ export const KitchenPrintAction: React.FunctionComponent = () => {
         const image = canvas
           .toDataURL('image/jpeg')
           .replace('data:image/jpeg;base64,', '');
-        // @ts-ignore
+        // @ts-expect-error running in Sunmi T2
         if (typeof simpos !== 'undefined') {
           if (printerIp) {
-            // @ts-ignore
+            // @ts-expect-error simpos instance is only available in Sunmi T2
             simpos.printRestaurantOrder(printerIp + 'SIMPOS' + image);
           } else {
-            // @ts-ignore
+            // @ts-expect-error simpos instance is only available in Sunmi T2
             simpos.printReceipt(image);
           }
         }
       });
     }
-  }, [kitchenOrderLines]);
+  }, [kitchenOrderLines, printerIp]);
   if (!activeOrder || kitchenOrderLines.length === 0) {
     return null;
   }

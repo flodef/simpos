@@ -1,4 +1,4 @@
-import { DataContextState } from '../../contexts/DataProvider';
+import { DataContextState } from '../../contexts/DataProvider/hooks';
 import { ActiveOrder } from '../../contexts/OrderManager';
 import { roundPrecision } from '../../utils';
 import { OrderLineExtension } from './order-line-extension';

@@ -1,6 +1,6 @@
 import keyBy from 'lodash.keyby';
 import uniqBy from 'lodash.uniqby';
-import { DataContextState } from '../../contexts/DataProvider';
+import { DataContextState } from '../../contexts/DataProvider/hooks';
 import {
   AccountTax,
   DecimalPrecision,

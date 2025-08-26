@@ -14,7 +14,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import styled from '@emotion/styled';
 import dayjs from 'dayjs';
 import html2canvas from 'html2canvas';
-import { useData } from '../../../../contexts/DataProvider';
+import { useData } from '../../../../contexts/DataProvider/hooks';
 import { ActiveOrder } from '../../../../contexts/OrderManager';
 import { useActiveOrderExtensions, useMoneyFormatter } from '../../../../hooks';
 import { HeaderField } from './OrderReceiptSummary';
@@ -119,9 +119,9 @@ export const OrderReceiptMobile: React.FunctionComponent<
         const image = canvas
           .toDataURL('image/jpeg')
           .replace('data:image/jpeg;base64,', '');
-        // @ts-ignore
+        // @ts-expect-error running in Sunmi T2
         if (typeof simpos !== 'undefined') {
-          // @ts-ignore
+          // @ts-expect-error simpos instance is only available in Sunmi T2
           simpos.printReceipt(image);
         }
       });

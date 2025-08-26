@@ -1,4 +1,4 @@
-import { DataContextState } from '../../contexts/DataProvider';
+import { DataContextState } from '../../contexts/DataProvider/hooks';
 import { ProductVariant } from '../../services/db';
 import { ProductPricelist } from '../../services/db/product-pricelist';
 

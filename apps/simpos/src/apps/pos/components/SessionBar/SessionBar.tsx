@@ -23,7 +23,7 @@ import { IconWifi } from '../../../../components/icons/output/IconWifi';
 import {
   useData,
   useGlobalDataDispatch,
-} from '../../../../contexts/DataProvider';
+} from '../../contexts/DataProvider/hooks';
 import { usePreference } from '../../../../contexts/PreferenceProvider';
 import { Employee, employeeRepository } from '../../../../services/db/employee';
 import { EmployeeRow } from './EmployeeRow';

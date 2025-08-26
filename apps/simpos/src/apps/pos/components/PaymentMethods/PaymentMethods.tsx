@@ -1,7 +1,7 @@
 import React from 'react';
 import { Grid } from '@chakra-ui/react';
 import { PaymentMethodControl } from './PaymentMethodControl';
-import { useData } from '../../../../contexts/DataProvider';
+import { useData } from '../../contexts/DataProvider/hooks';
 
 export interface PaymentMethodsProps {
   onSelect: (id: number) => void;

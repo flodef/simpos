@@ -1,6 +1,6 @@
 import keyBy from 'lodash.keyby';
 import { useMemo } from 'react';
-import { useData } from '../contexts/DataProvider';
+import { useData } from '../../contexts/DataProvider/hooks';
 import { DecimalPrecision } from '../services/db';
 import { DictionaryOf } from '../types';
 import { formatFloat, roundDecimals } from '../utils';
